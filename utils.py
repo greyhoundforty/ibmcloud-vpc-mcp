@@ -21,7 +21,8 @@ class VPCManager:
         self.authenticator = authenticator
         self.vpc_clients = {}  # Cache VPC clients by region
         self.regions = []
-        
+
+
     def _get_vpc_client(self, region: str) -> ibm_vpc.VpcV1:
         """Get or create VPC client for a specific region"""
         if region not in self.vpc_clients:

@@ -15,6 +15,8 @@ import mcp.server.stdio
 
 from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
 from utils import VPCManager
+from storage import StorageManager
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -26,7 +28,10 @@ class VPCMCPServer:
         self.server = Server("ibm-vpc-mcp")
         self.vpc_manager = None
         self._setup_handlers()
-        
+        # Add this line to initialize the StorageManager
+        self.storage_manager = None
+        self._setup_handlers()
+
     def _setup_handlers(self):
         """Set up MCP server handlers"""
         @self.server.list_tools()
@@ -416,8 +421,93 @@ class VPCMCPServer:
                         },
                         "required": ["region"]
                     }
-                )
-            ]
+                ),
+        Tool(
+            name="list_volumes",
+            description="List block storage volumes in a region with optional filtering",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "region": {
+                        "type": "string",
+                        "description": "Region name"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of results (optional)"
+                    },
+                    "attachment_state": {
+                        "type": "string",
+                        "description": "Filter by attachment state (optional: attached, unattached)"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Filter by volume name (optional)"
+                    },
+                    "tag": {
+                        "type": "string",
+                        "description": "Filter by tag (optional)"
+                    },
+                    "zone_name": {
+                        "type": "string",
+                        "description": "Filter by zone name (optional)"
+                    }
+                },
+                "required": ["region"]
+            }
+        ),
+        Tool(
+            name="list_volume_profiles",
+            description="List available volume profiles in a region",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "region": {
+                        "type": "string",
+                        "description": "Region name"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of results (optional)"
+                    }
+                },
+                "required": ["region"]
+            }
+        ),
+        Tool(
+            name="get_volume",
+            description="Get detailed information about a specific volume",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "volume_id": {
+                        "type": "string",
+                        "description": "Volume ID"
+                    },
+                    "region": {
+                        "type": "string",
+                        "description": "Region name"
+                    }
+                },
+                "required": ["volume_id", "region"]
+            }
+        ),
+        Tool(
+            name="analyze_storage_usage",
+            description="Analyze block storage usage in a region",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "region": {
+                        "type": "string",
+                        "description": "Region name"
+                    }
+                },
+                "required": ["region"]
+            }
+        )
+    ]
+    
         
         @self.server.call_tool()
         async def call_tool(name: str, arguments: Dict[str, Any]) -> List[TextContent]:
@@ -429,6 +519,7 @@ class VPCMCPServer:
                         raise ValueError("IBMCLOUD_API_KEY environment variable not set")
                     authenticator = IAMAuthenticator(apikey=api_key)
                     self.vpc_manager = VPCManager(authenticator)
+                    self.storage_manager = StorageManager(None, self.authenticator)
                 
                 # Route to appropriate handler
                 if name == "list_regions":
@@ -504,6 +595,30 @@ class VPCMCPServer:
                         arguments['region'],
                         arguments.get('resource_group_id')
                     )
+                elif name == "list_volumes":
+                    result = await self.storage_manager.list_volumes(
+                        arguments['region'],
+                        limit=arguments.get('limit'),
+                        attachment_state=arguments.get('attachment_state'),
+                        encryption=arguments.get('encryption'),
+                        name=arguments.get('name'),
+                        tag=arguments.get('tag'),
+                        zone_name=arguments.get('zone_name')
+                    )
+                elif name == "list_volume_profiles":
+                    result = await self.storage_manager.list_volume_profiles(
+                        arguments['region'],
+                        limit=arguments.get('limit')
+                    )
+                elif name == "get_volume":
+                    result = await self.storage_manager.get_volume(
+                        arguments['volume_id'],
+                        arguments['region']
+                    )
+                elif name == "analyze_storage_usage":
+                    result = await self.storage_manager.analyze_storage_usage(
+                        arguments['region']
+                    )
                 else:
                     raise ValueError(f"Unknown tool: {name}")
                 
@@ -518,7 +633,7 @@ class VPCMCPServer:
                     type="text",
                     text=f"Error: {str(e)}"
                 )]
-    
+                
     async def run(self):
         """Run the MCP server"""
         async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
