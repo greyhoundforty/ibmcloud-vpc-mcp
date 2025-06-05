@@ -273,6 +273,149 @@ class VPCMCPServer:
                         },
                         "required": ["vpc_id", "region"]
                     }
+                ),
+                # Backup Policy Tools
+                Tool(
+                    name="list_backup_policies",
+                    description="List backup policies in a region with optional filtering",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "region": {
+                                "type": "string",
+                                "description": "Region name"
+                            },
+                            "resource_group_id": {
+                                "type": "string",
+                                "description": "Filter by resource group ID (optional)"
+                            },
+                            "name": {
+                                "type": "string",
+                                "description": "Filter by policy name (optional)"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "description": "Filter by tag (optional)"
+                            },
+                            "start": {
+                                "type": "string",
+                                "description": "Pagination start token (optional)"
+                            },
+                            "limit": {
+                                "type": "integer",
+                                "description": "Maximum number of results (optional)"
+                            }
+                        },
+                        "required": ["region"]
+                    }
+                ),
+                Tool(
+                    name="list_backup_policy_jobs",
+                    description="List jobs for a specific backup policy",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "backup_policy_id": {
+                                "type": "string",
+                                "description": "Backup policy ID"
+                            },
+                            "region": {
+                                "type": "string",
+                                "description": "Region name"
+                            },
+                            "status": {
+                                "type": "string",
+                                "description": "Filter by job status (optional)"
+                            },
+                            "backup_policy_plan_id": {
+                                "type": "string",
+                                "description": "Filter by plan ID (optional)"
+                            },
+                            "start": {
+                                "type": "string",
+                                "description": "Pagination start token (optional)"
+                            },
+                            "limit": {
+                                "type": "integer",
+                                "description": "Maximum number of results (optional)"
+                            },
+                            "sort": {
+                                "type": "string",
+                                "description": "Sort order (optional, e.g., '-created_at')"
+                            },
+                            "source_id": {
+                                "type": "string",
+                                "description": "Filter by source ID (optional)"
+                            },
+                            "target_snapshots_id": {
+                                "type": "string",
+                                "description": "Filter by target snapshot ID (optional)"
+                            },
+                            "target_snapshots_crn": {
+                                "type": "string",
+                                "description": "Filter by target snapshot CRN (optional)"
+                            }
+                        },
+                        "required": ["backup_policy_id", "region"]
+                    }
+                ),
+                Tool(
+                    name="list_backup_policy_plans",
+                    description="List plans for a specific backup policy",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "backup_policy_id": {
+                                "type": "string",
+                                "description": "Backup policy ID"
+                            },
+                            "region": {
+                                "type": "string",
+                                "description": "Region name"
+                            },
+                            "name": {
+                                "type": "string",
+                                "description": "Filter by plan name (optional)"
+                            }
+                        },
+                        "required": ["backup_policy_id", "region"]
+                    }
+                ),
+                Tool(
+                    name="get_backup_policy_summary",
+                    description="Get comprehensive information about a backup policy including plans and recent jobs",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "backup_policy_id": {
+                                "type": "string",
+                                "description": "Backup policy ID"
+                            },
+                            "region": {
+                                "type": "string",
+                                "description": "Region name"
+                            }
+                        },
+                        "required": ["backup_policy_id", "region"]
+                    }
+                ),
+                Tool(
+                    name="analyze_backup_policies",
+                    description="Analyze backup policies in a region for health and compliance",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "region": {
+                                "type": "string",
+                                "description": "Region name"
+                            },
+                            "resource_group_id": {
+                                "type": "string",
+                                "description": "Filter by resource group ID (optional)"
+                            }
+                        },
+                        "required": ["region"]
+                    }
                 )
             ]
         
@@ -322,6 +465,45 @@ class VPCMCPServer:
                     result = await self.vpc_manager.list_floating_ips(arguments['region'])
                 elif name == "get_vpc_resources_summary":
                     result = await self.vpc_manager.get_vpc_resources_summary(arguments['vpc_id'], arguments['region'])
+                # Backup Policy handlers
+                elif name == "list_backup_policies":
+                    result = await self.vpc_manager.list_backup_policies(
+                        arguments['region'],
+                        arguments.get('resource_group_id'),
+                        arguments.get('name'),
+                        arguments.get('tag'),
+                        arguments.get('start'),
+                        arguments.get('limit')
+                    )
+                elif name == "list_backup_policy_jobs":
+                    result = await self.vpc_manager.list_backup_policy_jobs(
+                        arguments['backup_policy_id'],
+                        arguments['region'],
+                        arguments.get('status'),
+                        arguments.get('backup_policy_plan_id'),
+                        arguments.get('start'),
+                        arguments.get('limit'),
+                        arguments.get('sort'),
+                        arguments.get('source_id'),
+                        arguments.get('target_snapshots_id'),
+                        arguments.get('target_snapshots_crn')
+                    )
+                elif name == "list_backup_policy_plans":
+                    result = await self.vpc_manager.list_backup_policy_plans(
+                        arguments['backup_policy_id'],
+                        arguments['region'],
+                        arguments.get('name')
+                    )
+                elif name == "get_backup_policy_summary":
+                    result = await self.vpc_manager.get_backup_policy_summary(
+                        arguments['backup_policy_id'],
+                        arguments['region']
+                    )
+                elif name == "analyze_backup_policies":
+                    result = await self.vpc_manager.analyze_backup_policies(
+                        arguments['region'],
+                        arguments.get('resource_group_id')
+                    )
                 else:
                     raise ValueError(f"Unknown tool: {name}")
                 

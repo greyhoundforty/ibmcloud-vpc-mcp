@@ -371,6 +371,244 @@ class VPCManager:
             'region': region
         }
     
+    # Backup Policy Methods
+    async def list_backup_policies(self, region: str, 
+                                 resource_group_id: Optional[str] = None,
+                                 name: Optional[str] = None,
+                                 tag: Optional[str] = None,
+                                 start: Optional[str] = None,
+                                 limit: Optional[int] = None) -> Dict[str, Any]:
+        """List backup policies in a region"""
+        service = self._get_vpc_client(region)
+        
+        try:
+            response = service.list_backup_policies(
+                start=start,
+                limit=limit,
+                resource_group_id=resource_group_id,
+                name=name,
+                tag=tag
+            ).get_result()
+            
+            policies = response.get('backup_policies', [])
+            
+            # Add region info to each policy
+            for policy in policies:
+                policy['region'] = region
+            
+            return {
+                'backup_policies': policies,
+                'count': len(policies),
+                'region': region,
+                'filters': {
+                    'resource_group_id': resource_group_id,
+                    'name': name,
+                    'tag': tag
+                }
+            }
+        except ApiException as e:
+            logger.error(f"Error listing backup policies in region {region}: {e}")
+            raise
+    
+    async def list_backup_policy_jobs(self, backup_policy_id: str, region: str,
+                                    status: Optional[str] = None,
+                                    backup_policy_plan_id: Optional[str] = None,
+                                    start: Optional[str] = None,
+                                    limit: Optional[int] = None,
+                                    sort: Optional[str] = None,
+                                    source_id: Optional[str] = None,
+                                    target_snapshots_id: Optional[str] = None,
+                                    target_snapshots_crn: Optional[str] = None) -> Dict[str, Any]:
+        """List jobs for a specific backup policy"""
+        service = self._get_vpc_client(region)
+        
+        try:
+            response = service.list_backup_policy_jobs(
+                backup_policy_id=backup_policy_id,
+                status=status,
+                backup_policy_plan_id=backup_policy_plan_id,
+                start=start,
+                limit=limit,
+                sort=sort,
+                source_id=source_id,
+                target_snapshots_id=target_snapshots_id,
+                target_snapshots_crn=target_snapshots_crn
+            ).get_result()
+            
+            jobs = response.get('jobs', [])
+            
+            # Add metadata to each job
+            for job in jobs:
+                job['region'] = region
+                job['backup_policy_id'] = backup_policy_id
+            
+            # Summarize job statuses
+            status_summary = {}
+            for job in jobs:
+                job_status = job.get('status', 'unknown')
+                status_summary[job_status] = status_summary.get(job_status, 0) + 1
+            
+            return {
+                'jobs': jobs,
+                'count': len(jobs),
+                'backup_policy_id': backup_policy_id,
+                'region': region,
+                'status_summary': status_summary,
+                'filters': {
+                    'status': status,
+                    'backup_policy_plan_id': backup_policy_plan_id,
+                    'source_id': source_id
+                }
+            }
+        except ApiException as e:
+            logger.error(f"Error listing backup policy jobs for policy {backup_policy_id}: {e}")
+            raise
+    
+    async def list_backup_policy_plans(self, backup_policy_id: str, region: str,
+                                     name: Optional[str] = None) -> Dict[str, Any]:
+        """List plans for a specific backup policy"""
+        service = self._get_vpc_client(region)
+        
+        try:
+            response = service.list_backup_policy_plans(
+                backup_policy_id=backup_policy_id,
+                name=name
+            ).get_result()
+            
+            plans = response.get('plans', [])
+            
+            # Add metadata to each plan
+            for plan in plans:
+                plan['region'] = region
+                plan['backup_policy_id'] = backup_policy_id
+            
+            return {
+                'plans': plans,
+                'count': len(plans),
+                'backup_policy_id': backup_policy_id,
+                'region': region,
+                'filters': {
+                    'name': name
+                }
+            }
+        except ApiException as e:
+            logger.error(f"Error listing backup policy plans for policy {backup_policy_id}: {e}")
+            raise
+    
+    async def get_backup_policy_summary(self, backup_policy_id: str, region: str) -> Dict[str, Any]:
+        """Get comprehensive information about a backup policy including plans and recent jobs"""
+        summary = {
+            'backup_policy_id': backup_policy_id,
+            'region': region,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        try:
+            # Get policy details (this would require get_backup_policy method)
+            service = self._get_vpc_client(region)
+            policy_response = service.get_backup_policy(id=backup_policy_id).get_result()
+            summary['policy_details'] = policy_response
+            summary['policy_details']['region'] = region
+        except Exception as e:
+            summary['policy_details'] = {'error': str(e)}
+        
+        try:
+            # Get plans
+            plans_data = await self.list_backup_policy_plans(backup_policy_id, region)
+            summary['plans'] = {
+                'count': plans_data['count'],
+                'plans': plans_data['plans']
+            }
+        except Exception as e:
+            summary['plans'] = {'error': str(e)}
+        
+        try:
+            # Get recent jobs (last 50)
+            jobs_data = await self.list_backup_policy_jobs(
+                backup_policy_id, region, limit=50, sort='-created_at'
+            )
+            summary['recent_jobs'] = {
+                'count': jobs_data['count'],
+                'status_summary': jobs_data['status_summary'],
+                'jobs': jobs_data['jobs'][:10]  # Only include last 10 jobs in summary
+            }
+        except Exception as e:
+            summary['recent_jobs'] = {'error': str(e)}
+        
+        return summary
+    
+    async def analyze_backup_policies(self, region: str, 
+                                    resource_group_id: Optional[str] = None) -> Dict[str, Any]:
+        """Analyze backup policies in a region for health and compliance"""
+        try:
+            # Get all backup policies
+            policies_data = await self.list_backup_policies(
+                region, resource_group_id=resource_group_id
+            )
+            policies = policies_data['backup_policies']
+            
+            analysis = {
+                'region': region,
+                'timestamp': datetime.now().isoformat(),
+                'total_policies': len(policies),
+                'policy_health': [],
+                'summary': {
+                    'active_policies': 0,
+                    'inactive_policies': 0,
+                    'policies_with_failed_jobs': 0,
+                    'policies_without_recent_jobs': 0
+                }
+            }
+            
+            for policy in policies:
+                policy_id = policy['id']
+                policy_name = policy.get('name', 'Unnamed')
+                
+                policy_health = {
+                    'policy_id': policy_id,
+                    'policy_name': policy_name,
+                    'status': policy.get('lifecycle_state', 'unknown'),
+                    'issues': []
+                }
+                
+                # Check if policy is active
+                if policy.get('lifecycle_state') == 'stable':
+                    analysis['summary']['active_policies'] += 1
+                else:
+                    analysis['summary']['inactive_policies'] += 1
+                    policy_health['issues'].append('Policy is not in stable state')
+                
+                try:
+                    # Check recent jobs
+                    jobs_data = await self.list_backup_policy_jobs(
+                        policy_id, region, limit=10, sort='-created_at'
+                    )
+                    
+                    recent_jobs = jobs_data['jobs']
+                    if not recent_jobs:
+                        analysis['summary']['policies_without_recent_jobs'] += 1
+                        policy_health['issues'].append('No recent backup jobs found')
+                    else:
+                        # Check for failed jobs
+                        failed_jobs = [j for j in recent_jobs if j.get('status') == 'failed']
+                        if failed_jobs:
+                            analysis['summary']['policies_with_failed_jobs'] += 1
+                            policy_health['issues'].append(f'{len(failed_jobs)} recent failed jobs')
+                        
+                        policy_health['last_job_status'] = recent_jobs[0].get('status')
+                        policy_health['last_job_date'] = recent_jobs[0].get('created_at')
+                
+                except Exception as e:
+                    policy_health['issues'].append(f'Error retrieving jobs: {str(e)}')
+                
+                analysis['policy_health'].append(policy_health)
+            
+            return analysis
+            
+        except Exception as e:
+            logger.error(f"Error analyzing backup policies in region {region}: {e}")
+            raise
+    
     async def get_vpc_resources_summary(self, vpc_id: str, region: str) -> Dict[str, Any]:
         """Get a comprehensive summary of all resources in a VPC"""
         summary = {
@@ -507,4 +745,77 @@ def analyze_security_rule_risk(rule: Dict[str, Any]) -> Dict[str, Any]:
         'protocol': rule.get('protocol'),
         'direction': rule.get('direction'),
         'port_range': f"{rule.get('port_min', 'any')}-{rule.get('port_max', 'any')}" if rule.get('port_min') else "all"
+    }
+
+
+def analyze_backup_policy_health(policy: Dict[str, Any], jobs: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Analyze the health of a backup policy based on its configuration and recent jobs"""
+    health_score = 100
+    issues = []
+    recommendations = []
+    
+    # Check policy state
+    if policy.get('lifecycle_state') != 'stable':
+        health_score -= 30
+        issues.append(f"Policy is in {policy.get('lifecycle_state', 'unknown')} state")
+        recommendations.append("Ensure policy is in stable state")
+    
+    # Check if there are any jobs
+    if not jobs:
+        health_score -= 40
+        issues.append("No backup jobs found")
+        recommendations.append("Verify that backup schedules are active and resources are attached")
+    else:
+        # Check recent job failures
+        recent_jobs = jobs[:10]  # Last 10 jobs
+        failed_jobs = [j for j in recent_jobs if j.get('status') == 'failed']
+        
+        if failed_jobs:
+            failure_rate = len(failed_jobs) / len(recent_jobs)
+            if failure_rate > 0.5:
+                health_score -= 30
+                issues.append(f"High failure rate: {len(failed_jobs)}/{len(recent_jobs)} recent jobs failed")
+                recommendations.append("Investigate job failures and fix underlying issues")
+            elif failure_rate > 0.2:
+                health_score -= 15
+                issues.append(f"Some recent failures: {len(failed_jobs)}/{len(recent_jobs)} recent jobs failed")
+                recommendations.append("Monitor job failures and address any issues")
+        
+        # Check job frequency
+        if len(recent_jobs) < 5:
+            health_score -= 10
+            issues.append("Few recent backup jobs")
+            recommendations.append("Consider increasing backup frequency if appropriate")
+        
+        # Check for very old last job
+        if recent_jobs:
+            try:
+                from datetime import datetime, timedelta
+                last_job_date = datetime.fromisoformat(recent_jobs[0]['created_at'].replace('Z', '+00:00'))
+                days_ago = (datetime.now().astimezone() - last_job_date).days
+                
+                if days_ago > 7:
+                    health_score -= 20
+                    issues.append(f"Last backup job was {days_ago} days ago")
+                    recommendations.append("Check if backup schedule is still active")
+                elif days_ago > 3:
+                    health_score -= 10
+                    issues.append(f"Last backup job was {days_ago} days ago")
+            except Exception:
+                pass  # Skip date analysis if parsing fails
+    
+    # Determine overall health status
+    if health_score >= 80:
+        status = "healthy"
+    elif health_score >= 60:
+        status = "warning"
+    else:
+        status = "critical"
+    
+    return {
+        'health_score': max(0, health_score),
+        'status': status,
+        'issues': issues,
+        'recommendations': recommendations,
+        'analysis_timestamp': datetime.now().isoformat()
     }

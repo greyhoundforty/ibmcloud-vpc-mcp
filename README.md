@@ -16,6 +16,12 @@ A Model Context Protocol (MCP) server that provides comprehensive IBM Cloud VPC 
 - **Risk Assessment**: Built-in security rule risk analysis with threat categorization
 - **Comprehensive Reporting**: Detailed security summaries for entire VPCs
 
+### Backup Policy Management
+- **Policy Discovery**: List and filter backup policies across regions
+- **Plan Management**: View and analyze backup plans and schedules
+- **Job Monitoring**: Track backup job history and status
+- **Health Analysis**: Analyze backup policy health and compliance
+
 ### Enhanced Capabilities
 - **Real-time Data**: Live data from IBM Cloud APIs with intelligent caching
 - **Filtering Support**: Filter resources by VPC, region, or other criteria
@@ -125,6 +131,32 @@ list_vpcs --region us-south
 get_vpc_resources_summary --vpc_id vpc-12345 --region us-south
 ```
 
+### Backup Policy Management
+
+**List backup policies:**
+```bash
+# List all backup policies in a region
+list_backup_policies --region us-south
+
+# Filter by name
+list_backup_policies --region us-south --name weekly-backup
+```
+
+**Get backup policy details:**
+```bash
+# Get comprehensive information about a specific backup policy
+get_backup_policy_summary --backup_policy_id policy-12345 --region us-south
+```
+
+**Analyze backup policies:**
+```bash
+# Analyze all backup policies in a region for health and compliance
+analyze_backup_policies --region us-south
+
+# Filter by resource group
+analyze_backup_policies --region us-south --resource_group_id rg-12345
+```
+
 ## 🐳 Docker Commands
 
 ### Using mise tasks:
@@ -166,6 +198,8 @@ docker-compose up -d
 | `get_vpc` | Get detailed VPC information |
 | `list_subnets` | List subnets with filtering |
 | `list_instances` | List compute instances |
+| `list_instance_profiles` | List available instance profiles |
+| `list_public_gateways` | List public gateways |
 | `list_security_groups` | List security groups |
 | `get_security_group` | Get detailed security group info |
 | `list_security_group_rules` | List rules for specific security group |
@@ -173,6 +207,11 @@ docker-compose up -d
 | `analyze_security_groups_by_protocol` | Custom protocol analysis |
 | `list_floating_ips` | List floating IPs |
 | `get_vpc_resources_summary` | Complete VPC resource summary |
+| `list_backup_policies` | List backup policies in a region with optional filtering |
+| `list_backup_policy_jobs` | List jobs for a specific backup policy |
+| `list_backup_policy_plans` | List plans for a specific backup policy |
+| `get_backup_policy_summary` | Get comprehensive information about a backup policy including plans and recent jobs |
+| `analyze_backup_policies` | Analyze backup policies in a region for health and compliance |
 
 ## 🔒 Security Features
 
@@ -187,6 +226,20 @@ docker-compose up -d
 - **🔴 High**: SSH, RDP, or databases exposed to internet  
 - **🟡 Medium**: Wide port ranges or risky services
 - **🟢 Low**: Properly restricted access
+
+## 📦 Backup Policy Features
+
+### Policy Management
+- **Policy Discovery**: Find and filter backup policies across regions
+- **Resource Tagging**: Identify resources using tag-based policies
+- **Schedule Analysis**: View and validate backup schedules (cron format)
+- **Retention Rules**: Analyze snapshot retention settings
+
+### Health Monitoring
+- **Job Status**: Track success/failure of backup jobs
+- **Schedule Validation**: Ensure backups are running on time
+- **Cross-Region Analysis**: Verify proper cross-region replication
+- **Resource Coverage**: Identify resources without backup protection
 
 ## 🏗️ Architecture
 
@@ -282,6 +335,7 @@ mise run docker:build
 - **v1.1.0**: Added security analysis features
 - **v1.2.0**: Enhanced Docker support and mise tasks
 - **v1.3.0**: Multi-region support and comprehensive summaries
+- **v1.4.0**: Added backup policy management and analysis features
 
 ---
 
