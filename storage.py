@@ -20,6 +20,9 @@ Provides block storage and file storage management capabilities
 
 import logging
 from typing import Dict, List, Any, Optional
+import ibm_vpc
+from ibm_cloud_sdk_core import ApiException
+from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +40,7 @@ class StorageManager:
         """Get or create VPC client for a specific region"""
         if region not in self.vpc_clients:
             import ibm_vpc
-            service = ibm_vpc.VpcV1(authenticator=self.authenticator)
+            service = ibm_vpc.VpcV1(version='2025-04-08',authenticator=self.authenticator)
             service.set_service_url(f'https://{region}.iaas.cloud.ibm.com/v1')
             self.vpc_clients[region] = service
         return self.vpc_clients[region]
