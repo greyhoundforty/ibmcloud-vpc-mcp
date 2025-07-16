@@ -10,18 +10,6 @@ A Model Context Protocol (MCP) server that provides comprehensive IBM Cloud VPC 
 - **Instance Management**: View instance profiles, status, and network configurations
 - **Network Infrastructure**: Manage public gateways, floating IPs, and network interfaces
 
-### Security Analysis
-- **SSH Exposure Detection**: Identify security groups with SSH access open to the internet (`0.0.0.0/0`)
-- **Protocol-specific Analysis**: Analyze security groups for any protocol/port combination
-- **Risk Assessment**: Built-in security rule risk analysis with threat categorization
-- **Comprehensive Reporting**: Detailed security summaries for entire VPCs
-
-### Backup Policy Management
-- **Policy Discovery**: List and filter backup policies across regions
-- **Plan Management**: View and analyze backup plans and schedules
-- **Job Monitoring**: Track backup job history and status
-- **Health Analysis**: Analyze backup policy health and compliance
-
 ### Enhanced Capabilities
 - **Real-time Data**: Live data from IBM Cloud APIs with intelligent caching
 - **Filtering Support**: Filter resources by VPC, region, or other criteria
@@ -93,200 +81,170 @@ A Model Context Protocol (MCP) server that provides comprehensive IBM Cloud VPC 
 4. Ensure the key has VPC access permissions
 5. Copy the API key (save it securely - it won't be shown again)
 
-## 🎯 Usage Examples
-
-### Security Analysis
-
-**Find SSH exposure across all VPCs:**
-```bash
-# Check for SSH open to internet in us-south region
-analyze_ssh_security_groups --region us-south
-
-# Check specific VPC
-analyze_ssh_security_groups --region us-south --vpc_id vpc-12345
-```
-
-**Custom protocol analysis:**
-```bash
-# Find RDP exposure
-analyze_security_groups_by_protocol --region us-south --protocol tcp --port 3389
-
-# Find database exposure  
-analyze_security_groups_by_protocol --region us-south --protocol tcp --port 3306
-```
-
-### Resource Management
-
-**List VPCs:**
-```bash
-# All regions
-list_vpcs
-
-# Specific region
-list_vpcs --region us-south
-```
-
-**Get VPC summary:**
-```bash
-get_vpc_resources_summary --vpc_id vpc-12345 --region us-south
-```
-
-### Backup Policy Management
-
-**List backup policies:**
-```bash
-# List all backup policies in a region
-list_backup_policies --region us-south
-
-# Filter by name
-list_backup_policies --region us-south --name weekly-backup
-```
-
-**Get backup policy details:**
-```bash
-# Get comprehensive information about a specific backup policy
-get_backup_policy_summary --backup_policy_id policy-12345 --region us-south
-```
-
-**Analyze backup policies:**
-```bash
-# Analyze all backup policies in a region for health and compliance
-analyze_backup_policies --region us-south
-
-# Filter by resource group
-analyze_backup_policies --region us-south --resource_group_id rg-12345
-```
-
 ## 🐳 Docker Commands
 
 ### Using mise tasks:
 ```bash
-# Build Docker image
-mise run docker:build
+# Build Docker image with timestamp
+mise run build-container
 
-# Run container
-mise run docker:run
+# Build and update Claude Desktop config
+mise run build-and-update
 
-# Run in development mode
-mise run docker:dev
+# Quick rebuild
+mise run rebuild
 
-# Stop and clean up
-mise run docker:stop
-mise run docker:clean
+# Test container
+mise run test-container
 ```
 
 ### Manual Docker commands:
 ```bash
 # Build
-docker build -t ibm-vpc-mcp:latest .
+docker build -t ibmcloud-vpc-mcp:latest .
 
 # Run
 docker run -d --name vpc-mcp-server \
   -e IBMCLOUD_API_KEY="${IBMCLOUD_API_KEY}" \
-  ibm-vpc-mcp:latest
+  ibmcloud-vpc-mcp:latest
 
 # With docker-compose
 docker-compose up -d
 ```
 
-## 📊 MCP Tools Available
+## 📊 Available MCP Tools
 
-| Tool Name | Description |
-|-----------|-------------|
-| `list_regions` | List all IBM Cloud VPC regions |
-| `list_vpcs` | List VPCs (all regions or specific) |
-| `get_vpc` | Get detailed VPC information |
-| `list_subnets` | List subnets with filtering |
-| `list_instances` | List compute instances |
-| `list_instance_profiles` | List available instance profiles |
-| `list_public_gateways` | List public gateways |
-| `list_security_groups` | List security groups |
-| `get_security_group` | Get detailed security group info |
-| `list_security_group_rules` | List rules for specific security group |
-| `analyze_ssh_security_groups` | Find SSH exposure to internet |
-| `analyze_security_groups_by_protocol` | Custom protocol analysis |
-| `list_floating_ips` | List floating IPs |
-| `get_vpc_resources_summary` | Complete VPC resource summary |
-| `list_backup_policies` | List backup policies in a region with optional filtering |
-| `list_backup_policy_jobs` | List jobs for a specific backup policy |
-| `list_backup_policy_plans` | List plans for a specific backup policy |
-| `get_backup_policy_summary` | Get comprehensive information about a backup policy including plans and recent jobs |
-| `analyze_backup_policies` | Analyze backup policies in a region for health and compliance |
+### Core VPC Operations
+| Tool Name | Description | Key Parameters |
+|-----------|-------------|----------------|
+| `list_regions` | List all IBM Cloud VPC regions | None |
+| `list_vpcs` | List VPCs (all regions or specific) | `region` (optional) |
+| `get_vpc` | Get detailed VPC information | `vpc_id`, `region` |
+| `get_vpc_resources_summary` | Complete VPC resource summary with security analysis | `vpc_id`, `region` |
 
-## 🔒 Security Features
+### Network Resources
+| Tool Name | Description | Key Parameters |
+|-----------|-------------|----------------|
+| `list_subnets` | List subnets with filtering | `region`, `vpc_id` (optional) |
+| `list_instances` | List compute instances | `region`, `vpc_id` (optional) |
+| `list_instance_profiles` | List available instance profiles | `region` |
+| `list_public_gateways` | List public gateways | `region`, `vpc_id` (optional) |
+| `list_floating_ips` | List floating IPs | `region` |
 
-### Risk Detection
-- **SSH Exposure**: Automatically detects SSH access from `0.0.0.0/0`
-- **Wide Port Ranges**: Identifies overly permissive port ranges
-- **Protocol Analysis**: Supports TCP, UDP, and ICMP analysis
-- **Custom CIDR Matching**: Check exposure from specific IP ranges
+### Security Groups
+| Tool Name | Description | Key Parameters |
+|-----------|-------------|----------------|
+| `list_security_groups` | List security groups | `region`, `vpc_id` (optional) |
+| `get_security_group` | Get detailed security group info | `security_group_id`, `region` |
+| `list_security_group_rules` | List rules for specific security group | `security_group_id`, `region` |
 
-### Security Levels
-- **🔴 Critical**: All ports open to internet
-- **🔴 High**: SSH, RDP, or databases exposed to internet  
-- **🟡 Medium**: Wide port ranges or risky services
-- **🟢 Low**: Properly restricted access
+### Security Analysis
+| Tool Name | Description | Key Parameters |
+|-----------|-------------|----------------|
+| `analyze_ssh_security_groups` | Find SSH exposure to internet (0.0.0.0/0) | `region`, `vpc_id` (optional) |
+| `analyze_security_groups_by_protocol` | Custom protocol/port analysis | `region`, `protocol`, `port` (optional), `source_cidr` (optional) |
 
-## 📦 Backup Policy Features
+### Routing Tables
+| Tool Name | Description | Key Parameters |
+|-----------|-------------|----------------|
+| `list_routing_tables` | List routing tables in a VPC | `region`, `vpc_id` (required) |
+| `get_routing_table` | Get detailed routing table information | `vpc_id`, `routing_table_id`, `region` |
+| `find_routing_table_by_name` | Find routing table by name and return UUID | `region`, `vpc_id`, `name` |
 
-### Policy Management
-- **Policy Discovery**: Find and filter backup policies across regions
-- **Resource Tagging**: Identify resources using tag-based policies
-- **Schedule Analysis**: View and validate backup schedules (cron format)
-- **Retention Rules**: Analyze snapshot retention settings
+### Block Storage
+| Tool Name | Description | Key Parameters |
+|-----------|-------------|----------------|
+| `list_volumes` | List block storage volumes | `region`, `attachment_state` (optional), `name` (optional) |
+| `list_volume_profiles` | List available volume profiles | `region` |
+| `get_volume` | Get detailed volume information | `volume_id`, `region` |
+| `analyze_storage_usage` | Analyze block storage usage | `region` |
 
-### Health Monitoring
-- **Job Status**: Track success/failure of backup jobs
-- **Schedule Validation**: Ensure backups are running on time
-- **Cross-Region Analysis**: Verify proper cross-region replication
-- **Resource Coverage**: Identify resources without backup protection
+### File Storage
+| Tool Name | Description | Key Parameters |
+|-----------|-------------|----------------|
+| `list_shares` | List file shares | `region`, `name` (optional), `resource_group_id` (optional) |
+| `get_share` | Get detailed file share information | `share_id`, `region` |
+| `list_share_profiles` | List available file share profiles | `region` |
 
-## 🏗️ Architecture
+### Snapshots
+| Tool Name | Description | Key Parameters |
+|-----------|-------------|----------------|
+| `list_snapshots` | List block storage snapshots | `region`, `name` (optional), `source_volume_id` (optional) |
+| `get_snapshot` | Get detailed snapshot information | `snapshot_id`, `region` |
+| `analyze_snapshot_usage` | Analyze snapshot usage and costs | `region` |
 
-```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   MCP Client    │    │   MCP Server     │    │  IBM Cloud API  │
-│                 │    │                  │    │                 │
-│  - Claude       │◄──►│  - Tool Router   │◄──►│  - VPC Service  │
-│  - Other Tools  │    │  - VPCManager    │    │  - Multi-region │
-│                 │    │  - Utils         │    │  - Authentication│
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-```
+### Backup Policies
+| Tool Name | Description | Key Parameters |
+|-----------|-------------|----------------|
+| `list_backup_policies` | List backup policies | `region`, `name` (optional), `resource_group_id` (optional) |
+| `list_backup_policy_jobs` | List jobs for a backup policy | `backup_policy_id`, `region`, `status` (optional) |
+| `list_backup_policy_plans` | List plans for a backup policy | `backup_policy_id`, `region`, `name` (optional) |
+| `get_backup_policy_summary` | Get comprehensive backup policy information | `backup_policy_id`, `region` |
+| `analyze_backup_policies` | Analyze backup policy health and compliance | `region`, `resource_group_id` (optional) |
 
-### Components
-- **`vpc_mcp_server.py`**: MCP protocol handler and tool router
-- **`utils.py`**: Core VPC management and security analysis logic
-- **`VPCManager`**: Main class handling IBM Cloud API interactions
-- **Docker**: Containerized deployment with health checks
+## 🎯 Usage Examples
 
-## 🧪 Development
-
-### Project Structure
-```
-├── vpc_mcp_server.py    # Main MCP server
-├── utils.py             # VPC management utilities  
-├── requirements.txt     # Python dependencies
-├── Dockerfile          # Container configuration
-├── docker-compose.yaml # Multi-service deployment
-├── .mise.toml          # Development tasks
-└── README.md           # This file
-```
-
-### Adding New Features
-
-1. **Add new utilities** to `utils.py` in the `VPCManager` class
-2. **Register MCP tools** in `vpc_mcp_server.py` 
-3. **Update tests** and documentation
-4. **Rebuild Docker image**
-
-### Running Tests
+### Basic VPC Discovery
 ```bash
-# Test container
-mise run docker:test
+# List all regions
+list_regions
 
-# Manual testing
-docker run --rm -e IBMCLOUD_API_KEY="${IBMCLOUD_API_KEY}" \
-  ibm-vpc-mcp:latest python -c "print('MCP Server Test')"
+# List VPCs in specific region
+list_vpcs --region us-south
+
+# Get complete VPC summary
+get_vpc_resources_summary --vpc_id vpc-12345 --region us-south
+```
+
+### Security Analysis
+```bash
+# Find SSH exposure across all VPCs
+analyze_ssh_security_groups --region us-south
+
+# Find RDP exposure
+analyze_security_groups_by_protocol --region us-south --protocol tcp --port 3389
+
+# Get detailed security group information
+get_security_group --security_group_id sg-12345 --region us-south
+```
+
+### Routing Table Management
+```bash
+# List routing tables in a VPC
+list_routing_tables --region us-south --vpc_id vpc-12345
+
+# Find routing table by name
+find_routing_table_by_name --region us-south --vpc_id vpc-12345 --name "main-routing-table"
+
+# Get detailed routing table information
+get_routing_table --vpc_id vpc-12345 --routing_table_id rt-12345 --region us-south
+```
+
+### Storage Management
+```bash
+# List all volumes
+list_volumes --region us-south
+
+# List snapshots
+list_snapshots --region us-south
+
+# Analyze storage usage
+analyze_storage_usage --region us-south
+
+# Analyze snapshot usage
+analyze_snapshot_usage --region us-south
+```
+
+### Backup Policy Management
+```bash
+# List backup policies
+list_backup_policies --region us-south
+
+# Get backup policy summary
+get_backup_policy_summary --backup_policy_id policy-12345 --region us-south
+
+# Analyze backup policies
+analyze_backup_policies --region us-south
 ```
 
 ## 🤝 Contributing
@@ -294,40 +252,18 @@ docker run --rm -e IBMCLOUD_API_KEY="${IBMCLOUD_API_KEY}" \
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature/new-analysis`
 3. Make your changes in `utils.py` or `vpc_mcp_server.py`
-4. Test with: `mise run docker:build && mise run docker:test`
+4. Test with: `mise run build-container && mise run test-container`
 5. Submit a pull request
+
+## 📚 Additional Resources
+
+- **[CLAUDE.md](./CLAUDE.md)**: Comprehensive development guide for Claude Code instances
+- **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)**: Detailed troubleshooting guide
+- **[test_all_tools.md](./test_all_tools.md)**: Commands to test all tools after deployment
 
 ## 📝 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🆘 Troubleshooting
-
-### Common Issues
-
-**Authentication Errors:**
-```bash
-# Verify API key
-export IBMCLOUD_API_KEY="your-key"
-ibmcloud iam api-key-get your-key-name
-```
-
-**Docker Issues:**
-```bash
-# Clean rebuild
-mise run docker:clean
-mise run docker:build
-```
-
-**Permission Errors:**
-- Ensure API key has VPC Reader/Administrator permissions
-- Check IBM Cloud IAM policies
-
-### Getting Help
-
-- **IBM Cloud VPC Documentation**: [https://cloud.ibm.com/docs/vpc](https://cloud.ibm.com/docs/vpc)
-- **MCP Protocol**: [https://modelcontextprotocol.io](https://modelcontextprotocol.io)
-- **Issues**: Create an issue in this repository
 
 ## 🏷️ Version History
 
@@ -336,6 +272,7 @@ mise run docker:build
 - **v1.2.0**: Enhanced Docker support and mise tasks
 - **v1.3.0**: Multi-region support and comprehensive summaries
 - **v1.4.0**: Added backup policy management and analysis features
+- **v1.5.0**: Added routing table lookup, snapshots, and improved storage tools
 
 ---
 
