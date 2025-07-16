@@ -372,6 +372,232 @@ class VPCManager:
             'region': region
         }
     
+    async def list_routing_tables(self, region: str, vpc_id: str,
+                                 start: Optional[str] = None,
+                                 limit: Optional[int] = None,
+                                 is_default: Optional[bool] = None,
+                                 name: Optional[str] = None) -> Dict[str, Any]:
+        """List routing tables in a VPC (vpc_id is required)"""
+        service = self._get_vpc_client(region)
+        
+        try:
+            # Build parameters dict, excluding None values
+            params = {
+                'vpc_id': vpc_id,
+                'start': start,
+                'limit': limit,
+                'is_default': is_default
+            }
+            
+            # Remove None values
+            params = {k: v for k, v in params.items() if v is not None}
+            
+            logger.debug(f"Calling list_vpc_routing_tables with params: {params}")
+            response = service.list_vpc_routing_tables(**params).get_result()
+            logger.debug(f"Got response keys: {list(response.keys())}")
+            
+            # Extract and enhance routing table information
+            routing_tables = []
+            response_tables = response.get('routing_tables', [])
+            logger.debug(f"Found {len(response_tables)} routing tables")
+            
+            for table in response_tables:
+                table_info = {
+                    'id': table.get('id', 'unknown'),
+                    'name': table.get('name', 'unknown'),
+                    'vpc': table.get('vpc', {}),
+                    'is_default': table.get('is_default', False),
+                    'lifecycle_state': table.get('lifecycle_state', 'unknown'),
+                    'resource_group': table.get('resource_group', {}),
+                    'created_at': table.get('created_at', 'unknown'),
+                    'href': table.get('href', 'unknown'),
+                    'route_direct_link_ingress': table.get('route_direct_link_ingress', False),
+                    'route_transit_gateway_ingress': table.get('route_transit_gateway_ingress', False),
+                    'route_vpc_zone_ingress': table.get('route_vpc_zone_ingress', False)
+                }
+                
+                # Add subnets if present
+                if 'subnets' in table and table['subnets']:
+                    subnets = []
+                    for subnet in table['subnets']:
+                        subnets.append({
+                            'id': subnet.get('id', 'unknown'),
+                            'name': subnet.get('name', 'unknown'),
+                            'href': subnet.get('href', 'unknown')
+                        })
+                    table_info['subnets'] = subnets
+                
+                # Add routes count if present
+                if 'routes' in table:
+                    table_info['routes_count'] = len(table['routes'])
+                
+                routing_tables.append(table_info)
+            
+            # Apply name filter if specified (since API doesn't support it)
+            if name:
+                routing_tables = [rt for rt in routing_tables if name.lower() in rt['name'].lower()]
+            
+            return {
+                'routing_tables': routing_tables,
+                'count': len(routing_tables),
+                'region': region,
+                'filters': {
+                    'vpc_id': vpc_id,
+                    'is_default': is_default,
+                    'name': name
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Error listing routing tables in region {region}: {str(e)}")
+            logger.debug(f"Exception details: {type(e).__name__}: {e}")
+            return {
+                'error': str(e),
+                'region': region,
+                'routing_tables': [],
+                'count': 0
+            }
+    
+    async def get_routing_table(self, vpc_id: str, routing_table_id: str, region: str) -> Dict[str, Any]:
+        """Get detailed information about a specific routing table"""
+        service = self._get_vpc_client(region)
+        
+        try:
+            logger.debug(f"Getting VPC routing table {routing_table_id} in VPC {vpc_id} in region {region}")
+            response = service.get_vpc_routing_table(vpc_id=vpc_id, id=routing_table_id).get_result()
+            
+            # Extract and enhance routing table information
+            table_info = {
+                'id': response.get('id', 'unknown'),
+                'name': response.get('name', 'unknown'),
+                'vpc': response.get('vpc', {}),
+                'is_default': response.get('is_default', False),
+                'lifecycle_state': response.get('lifecycle_state', 'unknown'),
+                'resource_group': response.get('resource_group', {}),
+                'created_at': response.get('created_at', 'unknown'),
+                'href': response.get('href', 'unknown'),
+                'route_direct_link_ingress': response.get('route_direct_link_ingress', False),
+                'route_transit_gateway_ingress': response.get('route_transit_gateway_ingress', False),
+                'route_vpc_zone_ingress': response.get('route_vpc_zone_ingress', False)
+            }
+            
+            # Add subnets if present
+            if 'subnets' in response and response['subnets']:
+                subnets = []
+                for subnet in response['subnets']:
+                    subnets.append({
+                        'id': subnet.get('id', 'unknown'),
+                        'name': subnet.get('name', 'unknown'),
+                        'href': subnet.get('href', 'unknown')
+                    })
+                table_info['subnets'] = subnets
+            
+            # Add routes if present
+            if 'routes' in response and response['routes']:
+                routes = []
+                for route in response['routes']:
+                    route_info = {
+                        'id': route.get('id', 'unknown'),
+                        'name': route.get('name', 'unknown'),
+                        'destination': route.get('destination', 'unknown'),
+                        'action': route.get('action', 'unknown'),
+                        'zone': route.get('zone', {}),
+                        'created_at': route.get('created_at', 'unknown'),
+                        'href': route.get('href', 'unknown'),
+                        'lifecycle_state': route.get('lifecycle_state', 'unknown')
+                    }
+                    
+                    # Add next hop information
+                    if 'next_hop' in route:
+                        route_info['next_hop'] = route['next_hop']
+                    
+                    routes.append(route_info)
+                
+                table_info['routes'] = routes
+                table_info['routes_count'] = len(routes)
+            
+            return table_info
+            
+        except Exception as e:
+            logger.error(f"Error getting routing table {routing_table_id} in region {region}: {str(e)}")
+            logger.debug(f"Exception details: {type(e).__name__}: {e}")
+            return {
+                'error': str(e),
+                'vpc_id': vpc_id,
+                'routing_table_id': routing_table_id,
+                'region': region
+            }
+    
+    async def find_routing_table_by_name(self, region: str, vpc_id: str, name: str) -> Dict[str, Any]:
+        """Find a routing table by name and return its UUID and details"""
+        try:
+            # Use the existing list_routing_tables method to search by name
+            tables_result = await self.list_routing_tables(region, vpc_id, name=name)
+            
+            if 'error' in tables_result:
+                return {
+                    'error': tables_result['error'],
+                    'region': region,
+                    'vpc_id': vpc_id,
+                    'name': name
+                }
+            
+            matching_tables = tables_result.get('routing_tables', [])
+            
+            if not matching_tables:
+                return {
+                    'error': f"No routing table found with name '{name}' in VPC {vpc_id}",
+                    'region': region,
+                    'vpc_id': vpc_id,
+                    'name': name,
+                    'found_count': 0
+                }
+            
+            # Check for exact match first
+            exact_matches = [table for table in matching_tables if table['name'] == name]
+            
+            if exact_matches:
+                if len(exact_matches) > 1:
+                    # Multiple exact matches - return all with warning
+                    return {
+                        'warning': f"Multiple routing tables found with exact name '{name}'",
+                        'region': region,
+                        'vpc_id': vpc_id,
+                        'name': name,
+                        'found_count': len(exact_matches),
+                        'matches': exact_matches,
+                        'primary_match': exact_matches[0]  # Return first as primary
+                    }
+                else:
+                    # Single exact match - ideal case
+                    return {
+                        'region': region,
+                        'vpc_id': vpc_id,
+                        'name': name,
+                        'found_count': 1,
+                        'match': exact_matches[0],
+                        'id': exact_matches[0]['id']  # Convenience field for easy access
+                    }
+            else:
+                # No exact matches, return partial matches with warning
+                return {
+                    'warning': f"No exact match found for '{name}', returning partial matches",
+                    'region': region,
+                    'vpc_id': vpc_id,
+                    'name': name,
+                    'found_count': len(matching_tables),
+                    'matches': matching_tables
+                }
+                
+        except Exception as e:
+            logger.error(f"Error finding routing table by name '{name}' in region {region}: {str(e)}")
+            return {
+                'error': str(e),
+                'region': region,
+                'vpc_id': vpc_id,
+                'name': name
+            }
+    
     # Backup Policy Methods
     async def list_backup_policies(self, region: str, 
                                  resource_group_id: Optional[str] = None,

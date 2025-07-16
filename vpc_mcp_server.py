@@ -432,6 +432,10 @@ class VPCMCPServer:
                         "type": "string",
                         "description": "Region name"
                     },
+                    "start": {
+                        "type": "string",
+                        "description": "Pagination start token (optional)"
+                    },
                     "limit": {
                         "type": "integer",
                         "description": "Maximum number of results (optional)"
@@ -440,9 +444,21 @@ class VPCMCPServer:
                         "type": "string",
                         "description": "Filter by attachment state (optional: attached, unattached)"
                     },
+                    "encryption": {
+                        "type": "string",
+                        "description": "Filter by encryption type (optional)"
+                    },
                     "name": {
                         "type": "string",
                         "description": "Filter by volume name (optional)"
+                    },
+                    "operating_system_family": {
+                        "type": "string",
+                        "description": "Filter by operating system family (optional)"
+                    },
+                    "operating_system_architecture": {
+                        "type": "string",
+                        "description": "Filter by operating system architecture (optional)"
                     },
                     "tag": {
                         "type": "string",
@@ -465,6 +481,10 @@ class VPCMCPServer:
                     "region": {
                         "type": "string",
                         "description": "Region name"
+                    },
+                    "start": {
+                        "type": "string",
+                        "description": "Pagination start token (optional)"
                     },
                     "limit": {
                         "type": "integer",
@@ -505,6 +525,236 @@ class VPCMCPServer:
                 },
                 "required": ["region"]
             }
+        ),
+        Tool(
+            name="list_shares",
+            description="List file shares in a region with optional filtering",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "region": {
+                        "type": "string",
+                        "description": "Region name"
+                    },
+                    "start": {
+                        "type": "string",
+                        "description": "Pagination start token (optional)"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of results (optional)"
+                    },
+                    "resource_group_id": {
+                        "type": "string",
+                        "description": "Filter by resource group ID (optional)"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Filter by share name (optional)"
+                    },
+                    "sort": {
+                        "type": "string",
+                        "description": "Sort order (optional)"
+                    },
+                    "replication_role": {
+                        "type": "string",
+                        "description": "Filter by replication role (optional)"
+                    }
+                },
+                "required": ["region"]
+            }
+        ),
+        Tool(
+            name="get_share",
+            description="Get detailed information about a specific file share",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "share_id": {
+                        "type": "string",
+                        "description": "Share ID"
+                    },
+                    "region": {
+                        "type": "string",
+                        "description": "Region name"
+                    }
+                },
+                "required": ["share_id", "region"]
+            }
+        ),
+        Tool(
+            name="list_share_profiles",
+            description="List available file share profiles in a region",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "region": {
+                        "type": "string",
+                        "description": "Region name"
+                    },
+                    "start": {
+                        "type": "string",
+                        "description": "Pagination start token (optional)"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of results (optional)"
+                    },
+                    "sort": {
+                        "type": "string",
+                        "description": "Sort order (optional)"
+                    }
+                },
+                "required": ["region"]
+            }
+        ),
+        Tool(
+            name="list_routing_tables",
+            description="List routing tables in a VPC (vpc_id is required)",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "region": {
+                        "type": "string",
+                        "description": "Region name"
+                    },
+                    "vpc_id": {
+                        "type": "string",
+                        "description": "VPC ID (required)"
+                    },
+                    "start": {
+                        "type": "string",
+                        "description": "Pagination start token (optional)"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of results (optional)"
+                    },
+                    "is_default": {
+                        "type": "boolean",
+                        "description": "Filter by default routing table (optional)"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Filter by routing table name (optional)"
+                    }
+                },
+                "required": ["region", "vpc_id"]
+            }
+        ),
+        Tool(
+            name="get_routing_table",
+            description="Get detailed information about a specific routing table",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "vpc_id": {
+                        "type": "string",
+                        "description": "VPC ID"
+                    },
+                    "routing_table_id": {
+                        "type": "string",
+                        "description": "Routing table ID"
+                    },
+                    "region": {
+                        "type": "string",
+                        "description": "Region name"
+                    }
+                },
+                "required": ["vpc_id", "routing_table_id", "region"]
+            }
+        ),
+        Tool(
+            name="find_routing_table_by_name",
+            description="Find a routing table by name and return its UUID and details",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "region": {
+                        "type": "string",
+                        "description": "Region name"
+                    },
+                    "vpc_id": {
+                        "type": "string",
+                        "description": "VPC ID"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Routing table name to search for"
+                    }
+                },
+                "required": ["region", "vpc_id", "name"]
+            }
+        ),
+        Tool(
+            name="list_snapshots",
+            description="List block storage snapshots in a region with optional filtering",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "region": {
+                        "type": "string",
+                        "description": "Region name"
+                    },
+                    "start": {
+                        "type": "string",
+                        "description": "Pagination start token (optional)"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of results (optional)"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Filter by snapshot name (optional)"
+                    },
+                    "source_volume_id": {
+                        "type": "string",
+                        "description": "Filter by source volume ID (optional)"
+                    },
+                    "resource_group_id": {
+                        "type": "string",
+                        "description": "Filter by resource group ID (optional)"
+                    },
+                    "sort": {
+                        "type": "string",
+                        "description": "Sort order (optional)"
+                    }
+                },
+                "required": ["region"]
+            }
+        ),
+        Tool(
+            name="get_snapshot",
+            description="Get detailed information about a specific snapshot",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "snapshot_id": {
+                        "type": "string",
+                        "description": "Snapshot ID"
+                    },
+                    "region": {
+                        "type": "string",
+                        "description": "Region name"
+                    }
+                },
+                "required": ["snapshot_id", "region"]
+            }
+        ),
+        Tool(
+            name="analyze_snapshot_usage",
+            description="Analyze snapshot usage in a region",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "region": {
+                        "type": "string",
+                        "description": "Region name"
+                    }
+                },
+                "required": ["region"]
+            }
         )
     ]
     
@@ -519,7 +769,7 @@ class VPCMCPServer:
                         raise ValueError("IBMCLOUD_API_KEY environment variable not set")
                     authenticator = IAMAuthenticator(apikey=api_key)
                     self.vpc_manager = VPCManager(authenticator)
-                    self.storage_manager = StorageManager(None, self.authenticator)
+                    self.storage_manager = StorageManager(None, authenticator)
                 
                 # Route to appropriate handler
                 if name == "list_regions":
@@ -598,16 +848,20 @@ class VPCMCPServer:
                 elif name == "list_volumes":
                     result = await self.storage_manager.list_volumes(
                         arguments['region'],
+                        start=arguments.get('start'),
                         limit=arguments.get('limit'),
                         attachment_state=arguments.get('attachment_state'),
                         encryption=arguments.get('encryption'),
                         name=arguments.get('name'),
+                        operating_system_family=arguments.get('operating_system_family'),
+                        operating_system_architecture=arguments.get('operating_system_architecture'),
                         tag=arguments.get('tag'),
                         zone_name=arguments.get('zone_name')
                     )
                 elif name == "list_volume_profiles":
                     result = await self.storage_manager.list_volume_profiles(
                         arguments['region'],
+                        start=arguments.get('start'),
                         limit=arguments.get('limit')
                     )
                 elif name == "get_volume":
@@ -617,6 +871,68 @@ class VPCMCPServer:
                     )
                 elif name == "analyze_storage_usage":
                     result = await self.storage_manager.analyze_storage_usage(
+                        arguments['region']
+                    )
+                elif name == "list_shares":
+                    result = await self.storage_manager.list_shares(
+                        arguments['region'],
+                        start=arguments.get('start'),
+                        limit=arguments.get('limit'),
+                        resource_group_id=arguments.get('resource_group_id'),
+                        name=arguments.get('name'),
+                        sort=arguments.get('sort'),
+                        replication_role=arguments.get('replication_role')
+                    )
+                elif name == "get_share":
+                    result = await self.storage_manager.get_share(
+                        arguments['share_id'],
+                        arguments['region']
+                    )
+                elif name == "list_share_profiles":
+                    result = await self.storage_manager.list_share_profiles(
+                        arguments['region'],
+                        start=arguments.get('start'),
+                        limit=arguments.get('limit'),
+                        sort=arguments.get('sort')
+                    )
+                elif name == "list_routing_tables":
+                    result = await self.vpc_manager.list_routing_tables(
+                        arguments['region'],
+                        arguments['vpc_id'],
+                        start=arguments.get('start'),
+                        limit=arguments.get('limit'),
+                        is_default=arguments.get('is_default'),
+                        name=arguments.get('name')
+                    )
+                elif name == "get_routing_table":
+                    result = await self.vpc_manager.get_routing_table(
+                        arguments['vpc_id'],
+                        arguments['routing_table_id'],
+                        arguments['region']
+                    )
+                elif name == "find_routing_table_by_name":
+                    result = await self.vpc_manager.find_routing_table_by_name(
+                        arguments['region'],
+                        arguments['vpc_id'],
+                        arguments['name']
+                    )
+                elif name == "list_snapshots":
+                    result = await self.storage_manager.list_snapshots(
+                        arguments['region'],
+                        start=arguments.get('start'),
+                        limit=arguments.get('limit'),
+                        name=arguments.get('name'),
+                        source_volume_id=arguments.get('source_volume_id'),
+                        resource_group_id=arguments.get('resource_group_id'),
+                        sort=arguments.get('sort')
+                    )
+                elif name == "get_snapshot":
+                    result = await self.storage_manager.get_snapshot(
+                        arguments['snapshot_id'],
+                        arguments['region']
+                    )
+                elif name == "analyze_snapshot_usage":
+                    result = await self.storage_manager.analyze_snapshot_usage(
                         arguments['region']
                     )
                 else:
