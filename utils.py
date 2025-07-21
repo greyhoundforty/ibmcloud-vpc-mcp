@@ -917,6 +917,252 @@ class VPCManager:
         
         return summary
 
+    async def list_vpn_gateways(self, region: str, vpc_id: Optional[str] = None, limit: int = 50, start: Optional[str] = None) -> Dict[str, Any]:
+        """List VPN gateways in a region with optional VPC filtering"""
+        try:
+            service = self._get_vpc_client(region)
+            
+            kwargs = {"limit": limit}
+            if start:
+                kwargs["start"] = start
+            
+            response = service.list_vpn_gateways(**kwargs).get_result()
+            gateways = response.get('vpn_gateways', [])
+            
+            # Filter by VPC if specified
+            if vpc_id:
+                gateways = [gw for gw in gateways if gw.get('vpc', {}).get('id') == vpc_id]
+            
+            # Add region context
+            for gateway in gateways:
+                gateway['region'] = region
+            
+            return {
+                'vpn_gateways': gateways,
+                'count': len(gateways),
+                'region': region,
+                'vpc_id': vpc_id
+            }
+            
+        except ApiException as e:
+            logger.error(f"Error listing VPN gateways in region {region}: {e}")
+            raise
+
+    async def get_vpn_gateway(self, vpn_gateway_id: str, region: str) -> Dict[str, Any]:
+        """Get detailed information about a specific VPN gateway"""
+        try:
+            service = self._get_vpc_client(region)
+            response = service.get_vpn_gateway(vpn_gateway_id).get_result()
+            
+            # Add region context
+            response['region'] = region
+            
+            return response
+            
+        except ApiException as e:
+            logger.error(f"Error getting VPN gateway {vpn_gateway_id} in region {region}: {e}")
+            raise
+
+    async def list_vpn_servers(self, region: str, limit: int = 50, start: Optional[str] = None, name: Optional[str] = None) -> Dict[str, Any]:
+        """List VPN servers in a region with optional name filtering"""
+        try:
+            service = self._get_vpc_client(region)
+            
+            kwargs = {"limit": limit}
+            if start:
+                kwargs["start"] = start
+            if name:
+                kwargs["name"] = name
+            
+            response = service.list_vpn_servers(**kwargs).get_result()
+            servers = response.get('vpn_servers', [])
+            
+            # Add region context
+            for server in servers:
+                server['region'] = region
+            
+            return {
+                'vpn_servers': servers,
+                'count': len(servers),
+                'region': region
+            }
+            
+        except ApiException as e:
+            logger.error(f"Error listing VPN servers in region {region}: {e}")
+            raise
+
+    async def get_vpn_server(self, vpn_server_id: str, region: str) -> Dict[str, Any]:
+        """Get detailed information about a specific VPN server including authentication methods"""
+        try:
+            service = self._get_vpc_client(region)
+            response = service.get_vpn_server(vpn_server_id).get_result()
+            
+            # Add region context
+            response['region'] = region
+            
+            # Extract and highlight authentication information if available
+            auth_info = {}
+            
+            # Check for certificate-based authentication
+            if 'certificate_instance' in response:
+                auth_info['certificate_based'] = {
+                    'enabled': True,
+                    'certificate_instance': response.get('certificate_instance')
+                }
+            
+            # Check for client authentication methods
+            if 'client_authentication' in response:
+                auth_info['client_authentication'] = response['client_authentication']
+            
+            # Check for authentication method in the response
+            if 'authentication' in response:
+                auth_info['authentication_method'] = response['authentication']
+            
+            # Add authentication summary if we found any auth info
+            if auth_info:
+                response['authentication_summary'] = auth_info
+            
+            return response
+            
+        except ApiException as e:
+            logger.error(f"Error getting VPN server {vpn_server_id} in region {region}: {e}")
+            raise
+
+    async def get_ike_policy(self, ike_policy_id: str, region: str) -> Dict[str, Any]:
+        """Get detailed information about a specific IKE policy"""
+        try:
+            service = self._get_vpc_client(region)
+            response = service.get_ike_policy(ike_policy_id).get_result()
+            
+            # Add region context
+            response['region'] = region
+            
+            return response
+            
+        except ApiException as e:
+            logger.error(f"Error getting IKE policy {ike_policy_id} in region {region}: {e}")
+            raise
+
+    async def get_ipsec_policy(self, ipsec_policy_id: str, region: str) -> Dict[str, Any]:
+        """Get detailed information about a specific IPsec policy"""
+        try:
+            service = self._get_vpc_client(region)
+            response = service.get_ipsec_policy(ipsec_policy_id).get_result()
+            
+            # Add region context
+            response['region'] = region
+            
+            return response
+            
+        except ApiException as e:
+            logger.error(f"Error getting IPsec policy {ipsec_policy_id} in region {region}: {e}")
+            raise
+
+    async def get_vpn_server_client_configuration(self, vpn_server_id: str, region: str) -> Dict[str, Any]:
+        """Get client configuration for a VPN server"""
+        try:
+            service = self._get_vpc_client(region)
+            response = service.get_vpn_server_client_configuration(vpn_server_id).get_result()
+            
+            # The API returns a string containing the client configuration file content
+            # Handle potential encoding issues with the configuration string
+            if isinstance(response, bytes):
+                try:
+                    config_content = response.decode('utf-8')
+                except UnicodeDecodeError:
+                    # If it's binary data that can't be decoded, base64 encode it
+                    import base64
+                    config_content = base64.b64encode(response).decode('ascii')
+                    encoding_used = "base64"
+                else:
+                    encoding_used = "utf-8"
+            else:
+                # Already a string - ensure it's properly encoded
+                try:
+                    config_content = str(response).encode('utf-8').decode('utf-8')
+                    encoding_used = "utf-8"
+                except UnicodeDecodeError:
+                    # If there are encoding issues, replace problematic characters
+                    config_content = str(response).encode('utf-8', errors='replace').decode('utf-8')
+                    encoding_used = "utf-8-replaced"
+            
+            # Return structured response with metadata
+            result = {
+                'vpn_server_id': vpn_server_id,
+                'region': region,
+                'client_configuration_content': config_content,
+                'metadata': {
+                    'content_type': 'openvpn_configuration',
+                    'encoding': encoding_used,
+                    'description': 'OpenVPN client configuration file content'
+                }
+            }
+            
+            return result
+            
+        except ApiException as e:
+            logger.error(f"Error getting VPN server client configuration for {vpn_server_id} in region {region}: {e}")
+            raise
+
+    async def list_vpn_server_clients(self, vpn_server_id: str, region: str, limit: int = 50, start: Optional[str] = None, sort: Optional[str] = None) -> Dict[str, Any]:
+        """List clients for a VPN server"""
+        try:
+            service = self._get_vpc_client(region)
+            
+            kwargs = {"limit": limit}
+            if start:
+                kwargs["start"] = start
+            if sort:
+                kwargs["sort"] = sort
+            
+            response = service.list_vpn_server_clients(vpn_server_id, **kwargs).get_result()
+            clients = response.get('clients', [])
+            
+            # Add region context and additional metadata
+            for client in clients:
+                client['region'] = region
+                client['vpn_server_id'] = vpn_server_id
+            
+            return {
+                'vpn_server_id': vpn_server_id,
+                'clients': clients,
+                'count': len(clients),
+                'region': region,
+                'total_count': response.get('total_count', len(clients)),
+                'limit': response.get('limit', limit)
+            }
+            
+        except ApiException as e:
+            logger.error(f"Error listing VPN server clients for {vpn_server_id} in region {region}: {e}")
+            raise
+
+    async def list_vpn_server_routes(self, vpn_server_id: str, region: str, limit: int = 50, start: Optional[str] = None) -> Dict[str, Any]:
+        """List routes for a VPN server"""
+        try:
+            service = self._get_vpc_client(region)
+            
+            kwargs = {"limit": limit}
+            if start:
+                kwargs["start"] = start
+            
+            response = service.list_vpn_server_routes(vpn_server_id, **kwargs).get_result()
+            routes = response.get('routes', [])
+            
+            # Add region context
+            for route in routes:
+                route['region'] = region
+            
+            return {
+                'vpn_server_id': vpn_server_id,
+                'routes': routes,
+                'count': len(routes),
+                'region': region
+            }
+            
+        except ApiException as e:
+            logger.error(f"Error listing VPN server routes for {vpn_server_id} in region {region}: {e}")
+            raise
+
 
 # Convenience functions for backward compatibility and ease of use
 async def create_vpc_manager(api_key: str) -> VPCManager:

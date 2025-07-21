@@ -755,6 +755,204 @@ class VPCMCPServer:
                 },
                 "required": ["region"]
             }
+        ),
+        Tool(
+            name="list_vpn_gateways",
+            description="List VPN gateways in a region with optional VPC filtering",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "region": {
+                        "type": "string",
+                        "description": "Region name"
+                    },
+                    "vpc_id": {
+                        "type": "string",
+                        "description": "Optional VPC ID to filter gateways"
+                    },
+                    "limit": {
+                        "type": "number",
+                        "description": "Maximum number of gateways to return (default 50)"
+                    },
+                    "start": {
+                        "type": "string", 
+                        "description": "Pagination start token"
+                    }
+                },
+                "required": ["region"]
+            }
+        ),
+        Tool(
+            name="get_vpn_gateway",
+            description="Get detailed information about a specific VPN gateway",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "vpn_gateway_id": {
+                        "type": "string",
+                        "description": "VPN gateway ID"
+                    },
+                    "region": {
+                        "type": "string",
+                        "description": "Region name"
+                    }
+                },
+                "required": ["vpn_gateway_id", "region"]
+            }
+        ),
+        Tool(
+            name="list_vpn_servers",
+            description="List VPN servers in a region with optional name filtering",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "region": {
+                        "type": "string",
+                        "description": "Region name"
+                    },
+                    "limit": {
+                        "type": "number",
+                        "description": "Maximum number of servers to return (default 50)"
+                    },
+                    "start": {
+                        "type": "string",
+                        "description": "Pagination start token"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Optional name filter for servers"
+                    }
+                },
+                "required": ["region"]
+            }
+        ),
+        Tool(
+            name="get_vpn_server", 
+            description="Get detailed information about a specific VPN server",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "vpn_server_id": {
+                        "type": "string",
+                        "description": "VPN server ID"
+                    },
+                    "region": {
+                        "type": "string",
+                        "description": "Region name"
+                    }
+                },
+                "required": ["vpn_server_id", "region"]
+            }
+        ),
+        Tool(
+            name="get_ike_policy",
+            description="Get detailed information about a specific IKE policy",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "ike_policy_id": {
+                        "type": "string",
+                        "description": "IKE policy ID"
+                    },
+                    "region": {
+                        "type": "string",
+                        "description": "Region name"
+                    }
+                },
+                "required": ["ike_policy_id", "region"]
+            }
+        ),
+        Tool(
+            name="get_ipsec_policy",
+            description="Get detailed information about a specific IPsec policy",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "ipsec_policy_id": {
+                        "type": "string",
+                        "description": "IPsec policy ID"
+                    },
+                    "region": {
+                        "type": "string",
+                        "description": "Region name"
+                    }
+                },
+                "required": ["ipsec_policy_id", "region"]
+            }
+        ),
+        Tool(
+            name="get_vpn_server_client_configuration",
+            description="Get client configuration for a VPN server",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "vpn_server_id": {
+                        "type": "string",
+                        "description": "VPN server ID"
+                    },
+                    "region": {
+                        "type": "string",
+                        "description": "Region name"
+                    }
+                },
+                "required": ["vpn_server_id", "region"]
+            }
+        ),
+        Tool(
+            name="list_vpn_server_routes",
+            description="List routes for a VPN server",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "vpn_server_id": {
+                        "type": "string",
+                        "description": "VPN server ID"
+                    },
+                    "region": {
+                        "type": "string",
+                        "description": "Region name"
+                    },
+                    "limit": {
+                        "type": "number",
+                        "description": "Maximum number of routes to return (default 50)"
+                    },
+                    "start": {
+                        "type": "string",
+                        "description": "Pagination start token"
+                    }
+                },
+                "required": ["vpn_server_id", "region"]
+            }
+        ),
+        Tool(
+            name="list_vpn_server_clients",
+            description="List clients connected to a VPN server",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "vpn_server_id": {
+                        "type": "string",
+                        "description": "VPN server ID"
+                    },
+                    "region": {
+                        "type": "string",
+                        "description": "Region name"
+                    },
+                    "limit": {
+                        "type": "number",
+                        "description": "Maximum number of clients to return (default 50)"
+                    },
+                    "start": {
+                        "type": "string",
+                        "description": "Pagination start token"
+                    },
+                    "sort": {
+                        "type": "string",
+                        "description": "Sort field (e.g., 'created_at', 'common_name')"
+                    }
+                },
+                "required": ["vpn_server_id", "region"]
+            }
         )
     ]
     
@@ -934,6 +1132,60 @@ class VPCMCPServer:
                 elif name == "analyze_snapshot_usage":
                     result = await self.storage_manager.analyze_snapshot_usage(
                         arguments['region']
+                    )
+                elif name == "list_vpn_gateways":
+                    result = await self.vpc_manager.list_vpn_gateways(
+                        arguments['region'],
+                        arguments.get('vpc_id'),
+                        arguments.get('limit', 50),
+                        arguments.get('start')
+                    )
+                elif name == "get_vpn_gateway":
+                    result = await self.vpc_manager.get_vpn_gateway(
+                        arguments['vpn_gateway_id'],
+                        arguments['region']
+                    )
+                elif name == "list_vpn_servers":
+                    result = await self.vpc_manager.list_vpn_servers(
+                        arguments['region'],
+                        arguments.get('limit', 50),
+                        arguments.get('start'),
+                        arguments.get('name')
+                    )
+                elif name == "get_vpn_server":
+                    result = await self.vpc_manager.get_vpn_server(
+                        arguments['vpn_server_id'],
+                        arguments['region']
+                    )
+                elif name == "get_ike_policy":
+                    result = await self.vpc_manager.get_ike_policy(
+                        arguments['ike_policy_id'],
+                        arguments['region']
+                    )
+                elif name == "get_ipsec_policy":
+                    result = await self.vpc_manager.get_ipsec_policy(
+                        arguments['ipsec_policy_id'],
+                        arguments['region']
+                    )
+                elif name == "get_vpn_server_client_configuration":
+                    result = await self.vpc_manager.get_vpn_server_client_configuration(
+                        arguments['vpn_server_id'],
+                        arguments['region']
+                    )
+                elif name == "list_vpn_server_routes":
+                    result = await self.vpc_manager.list_vpn_server_routes(
+                        arguments['vpn_server_id'],
+                        arguments['region'],
+                        arguments.get('limit', 50),
+                        arguments.get('start')
+                    )
+                elif name == "list_vpn_server_clients":
+                    result = await self.vpc_manager.list_vpn_server_clients(
+                        arguments['vpn_server_id'],
+                        arguments['region'],
+                        arguments.get('limit', 50),
+                        arguments.get('start'),
+                        arguments.get('sort')
                     )
                 else:
                     raise ValueError(f"Unknown tool: {name}")

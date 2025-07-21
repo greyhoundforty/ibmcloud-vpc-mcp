@@ -522,3 +522,525 @@ class TestIntegrationScenarios:
                 
                 assert 'subnets' in subnets
                 assert 'instances' in instances
+
+
+class TestVPNMethods:
+    """Test cases for VPN-related methods"""
+    
+    @pytest.fixture
+    def mock_authenticator(self):
+        """Create a mock IAM authenticator"""
+        return Mock(spec=IAMAuthenticator)
+    
+    @pytest.fixture
+    def vpc_manager(self, mock_authenticator):
+        """Create a VPCManager instance with mocked authenticator"""
+        return VPCManager(mock_authenticator)
+    
+    @pytest.fixture
+    def sample_vpn_gateway_data(self):
+        """Sample VPN gateway data for testing"""
+        return {
+            'vpn_gateways': [
+                {
+                    'id': 'vpn-gateway-1',
+                    'name': 'main-site-to-site',
+                    'status': 'available',
+                    'vpc': {'id': 'vpc-1', 'name': 'main-vpc'},
+                    'created_at': '2023-01-01T00:00:00Z',
+                    'connections': []
+                },
+                {
+                    'id': 'vpn-gateway-2', 
+                    'name': 'backup-gateway',
+                    'status': 'available',
+                    'vpc': {'id': 'vpc-2', 'name': 'backup-vpc'},
+                    'created_at': '2023-01-02T00:00:00Z',
+                    'connections': []
+                }
+            ]
+        }
+    
+    @pytest.fixture
+    def sample_vpn_server_data(self):
+        """Sample VPN server data for testing"""
+        return {
+            'vpn_servers': [
+                {
+                    'id': 'vpn-server-1',
+                    'name': 'client-access-server',
+                    'status': 'available',
+                    'created_at': '2023-01-01T00:00:00Z',
+                    'client_ip_pool': '192.168.1.0/24',
+                    'port': 443
+                },
+                {
+                    'id': 'vpn-server-2',
+                    'name': 'dev-access-server', 
+                    'status': 'available',
+                    'created_at': '2023-01-02T00:00:00Z',
+                    'client_ip_pool': '192.168.2.0/24',
+                    'port': 443
+                }
+            ]
+        }
+    
+    @pytest.mark.asyncio
+    async def test_list_vpn_gateways(self, vpc_manager, sample_vpn_gateway_data):
+        """Test listing VPN gateways"""
+        with patch.object(vpc_manager, '_get_vpc_client') as mock_get_client:
+            mock_service = Mock()
+            mock_get_client.return_value = mock_service
+            mock_service.list_vpn_gateways.return_value.get_result.return_value = sample_vpn_gateway_data
+            
+            result = await vpc_manager.list_vpn_gateways('us-south')
+            
+            assert result['count'] == 2
+            assert result['region'] == 'us-south'
+            assert result['vpc_id'] is None
+            assert len(result['vpn_gateways']) == 2
+            assert result['vpn_gateways'][0]['id'] == 'vpn-gateway-1'
+            assert result['vpn_gateways'][0]['region'] == 'us-south'
+            
+            mock_service.list_vpn_gateways.assert_called_once_with(limit=50)
+    
+    @pytest.mark.asyncio
+    async def test_list_vpn_gateways_with_vpc_filter(self, vpc_manager, sample_vpn_gateway_data):
+        """Test listing VPN gateways with VPC filtering"""
+        with patch.object(vpc_manager, '_get_vpc_client') as mock_get_client:
+            mock_service = Mock()
+            mock_get_client.return_value = mock_service
+            mock_service.list_vpn_gateways.return_value.get_result.return_value = sample_vpn_gateway_data
+            
+            result = await vpc_manager.list_vpn_gateways('us-south', vpc_id='vpc-1')
+            
+            assert result['count'] == 1
+            assert result['region'] == 'us-south'
+            assert result['vpc_id'] == 'vpc-1'
+            assert len(result['vpn_gateways']) == 1
+            assert result['vpn_gateways'][0]['vpc']['id'] == 'vpc-1'
+    
+    @pytest.mark.asyncio
+    async def test_get_vpn_gateway(self, vpc_manager):
+        """Test getting a specific VPN gateway"""
+        gateway_data = {
+            'id': 'vpn-gateway-1',
+            'name': 'main-site-to-site',
+            'status': 'available',
+            'vpc': {'id': 'vpc-1', 'name': 'main-vpc'}
+        }
+        
+        with patch.object(vpc_manager, '_get_vpc_client') as mock_get_client:
+            mock_service = Mock()
+            mock_get_client.return_value = mock_service
+            mock_service.get_vpn_gateway.return_value.get_result.return_value = gateway_data
+            
+            result = await vpc_manager.get_vpn_gateway('vpn-gateway-1', 'us-south')
+            
+            assert result['id'] == 'vpn-gateway-1'
+            assert result['region'] == 'us-south'
+            
+            mock_service.get_vpn_gateway.assert_called_once_with('vpn-gateway-1')
+    
+    @pytest.mark.asyncio
+    async def test_list_vpn_servers(self, vpc_manager, sample_vpn_server_data):
+        """Test listing VPN servers"""
+        with patch.object(vpc_manager, '_get_vpc_client') as mock_get_client:
+            mock_service = Mock()
+            mock_get_client.return_value = mock_service
+            mock_service.list_vpn_servers.return_value.get_result.return_value = sample_vpn_server_data
+            
+            result = await vpc_manager.list_vpn_servers('us-south')
+            
+            assert result['count'] == 2
+            assert result['region'] == 'us-south'
+            assert len(result['vpn_servers']) == 2
+            assert result['vpn_servers'][0]['id'] == 'vpn-server-1'
+            assert result['vpn_servers'][0]['region'] == 'us-south'
+            
+            mock_service.list_vpn_servers.assert_called_once_with(limit=50)
+    
+    @pytest.mark.asyncio
+    async def test_list_vpn_servers_with_name_filter(self, vpc_manager, sample_vpn_server_data):
+        """Test listing VPN servers with name filtering"""
+        with patch.object(vpc_manager, '_get_vpc_client') as mock_get_client:
+            mock_service = Mock()
+            mock_get_client.return_value = mock_service
+            mock_service.list_vpn_servers.return_value.get_result.return_value = sample_vpn_server_data
+            
+            result = await vpc_manager.list_vpn_servers('us-south', name='client-access-server')
+            
+            assert result['count'] == 2
+            assert result['region'] == 'us-south'
+            
+            mock_service.list_vpn_servers.assert_called_once_with(limit=50, name='client-access-server')
+    
+    @pytest.mark.asyncio
+    async def test_get_vpn_server(self, vpc_manager):
+        """Test getting a specific VPN server"""
+        server_data = {
+            'id': 'vpn-server-1',
+            'name': 'client-access-server',
+            'status': 'available',
+            'client_ip_pool': '192.168.1.0/24'
+        }
+        
+        with patch.object(vpc_manager, '_get_vpc_client') as mock_get_client:
+            mock_service = Mock()
+            mock_get_client.return_value = mock_service
+            mock_service.get_vpn_server.return_value.get_result.return_value = server_data
+            
+            result = await vpc_manager.get_vpn_server('vpn-server-1', 'us-south')
+            
+            assert result['id'] == 'vpn-server-1'
+            assert result['region'] == 'us-south'
+            
+            mock_service.get_vpn_server.assert_called_once_with('vpn-server-1')
+
+    @pytest.mark.asyncio
+    async def test_get_vpn_server_with_authentication(self, vpc_manager):
+        """Test getting a VPN server with authentication information"""
+        server_data = {
+            'id': 'vpn-server-1',
+            'name': 'client-access-server',
+            'status': 'available',
+            'client_ip_pool': '192.168.1.0/24',
+            'certificate_instance': {
+                'id': 'cert-1',
+                'name': 'server-cert'
+            },
+            'client_authentication': [
+                {'method': 'certificate'},
+                {'method': 'username'}
+            ]
+        }
+        
+        with patch.object(vpc_manager, '_get_vpc_client') as mock_get_client:
+            mock_service = Mock()
+            mock_get_client.return_value = mock_service
+            mock_service.get_vpn_server.return_value.get_result.return_value = server_data
+            
+            result = await vpc_manager.get_vpn_server('vpn-server-1', 'us-south')
+            
+            assert result['id'] == 'vpn-server-1'
+            assert result['region'] == 'us-south'
+            assert 'authentication_summary' in result
+            assert result['authentication_summary']['certificate_based']['enabled'] == True
+            assert result['authentication_summary']['client_authentication'] == [
+                {'method': 'certificate'},
+                {'method': 'username'}
+            ]
+            
+            mock_service.get_vpn_server.assert_called_once_with('vpn-server-1')
+    
+    @pytest.mark.asyncio
+    async def test_vpn_gateway_api_exception(self, vpc_manager):
+        """Test VPN gateway API exception handling"""
+        with patch.object(vpc_manager, '_get_vpc_client') as mock_get_client:
+            mock_service = Mock()
+            mock_get_client.return_value = mock_service
+            mock_service.list_vpn_gateways.side_effect = ApiException('Not Found')
+            
+            with pytest.raises(ApiException):
+                await vpc_manager.list_vpn_gateways('us-south')
+    
+    @pytest.mark.asyncio 
+    async def test_vpn_server_api_exception(self, vpc_manager):
+        """Test VPN server API exception handling"""
+        with patch.object(vpc_manager, '_get_vpc_client') as mock_get_client:
+            mock_service = Mock()
+            mock_get_client.return_value = mock_service
+            mock_service.list_vpn_servers.side_effect = ApiException('Not Found')
+            
+            with pytest.raises(ApiException):
+                await vpc_manager.list_vpn_servers('us-south')
+
+    @pytest.mark.asyncio
+    async def test_get_ike_policy(self, vpc_manager):
+        """Test getting a specific IKE policy"""
+        ike_policy_data = {
+            'id': 'ike-policy-1',
+            'name': 'main-ike-policy',
+            'authentication_algorithm': 'sha1',
+            'encryption_algorithm': 'aes128',
+            'dh_group': 2,
+            'ike_version': 1
+        }
+        
+        with patch.object(vpc_manager, '_get_vpc_client') as mock_get_client:
+            mock_service = Mock()
+            mock_get_client.return_value = mock_service
+            mock_service.get_ike_policy.return_value.get_result.return_value = ike_policy_data
+            
+            result = await vpc_manager.get_ike_policy('ike-policy-1', 'us-south')
+            
+            assert result['id'] == 'ike-policy-1'
+            assert result['region'] == 'us-south'
+            assert result['authentication_algorithm'] == 'sha1'
+            
+            mock_service.get_ike_policy.assert_called_once_with('ike-policy-1')
+
+    @pytest.mark.asyncio
+    async def test_get_ipsec_policy(self, vpc_manager):
+        """Test getting a specific IPsec policy"""
+        ipsec_policy_data = {
+            'id': 'ipsec-policy-1',
+            'name': 'main-ipsec-policy',
+            'authentication_algorithm': 'sha1',
+            'encryption_algorithm': 'aes128',
+            'pfs': 'group_2',
+            'protocol': 'esp'
+        }
+        
+        with patch.object(vpc_manager, '_get_vpc_client') as mock_get_client:
+            mock_service = Mock()
+            mock_get_client.return_value = mock_service
+            mock_service.get_ipsec_policy.return_value.get_result.return_value = ipsec_policy_data
+            
+            result = await vpc_manager.get_ipsec_policy('ipsec-policy-1', 'us-south')
+            
+            assert result['id'] == 'ipsec-policy-1'
+            assert result['region'] == 'us-south'
+            assert result['protocol'] == 'esp'
+            
+            mock_service.get_ipsec_policy.assert_called_once_with('ipsec-policy-1')
+
+    @pytest.mark.asyncio
+    async def test_get_vpn_server_client_configuration(self, vpc_manager):
+        """Test getting VPN server client configuration"""
+        # API returns a string containing the OpenVPN configuration file content
+        config_content = """client
+dev tun
+proto udp
+remote vpn-server.example.com 1194
+cert client.crt
+key client.key
+ca ca.crt
+"""
+        
+        with patch.object(vpc_manager, '_get_vpc_client') as mock_get_client:
+            mock_service = Mock()
+            mock_get_client.return_value = mock_service
+            mock_service.get_vpn_server_client_configuration.return_value.get_result.return_value = config_content
+            
+            result = await vpc_manager.get_vpn_server_client_configuration('vpn-server-1', 'us-south')
+            
+            assert result['vpn_server_id'] == 'vpn-server-1'
+            assert result['region'] == 'us-south'
+            assert 'client_configuration_content' in result
+            assert 'metadata' in result
+            assert result['client_configuration_content'] == config_content
+            assert result['metadata']['content_type'] == 'openvpn_configuration'
+            assert result['metadata']['encoding'] == 'utf-8'
+            
+            mock_service.get_vpn_server_client_configuration.assert_called_once_with('vpn-server-1')
+
+    @pytest.mark.asyncio
+    async def test_get_vpn_server_client_configuration_with_binary_data(self, vpc_manager):
+        """Test getting VPN server client configuration with binary data handling"""
+        # Simulate binary response that needs base64 encoding
+        config_binary = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR'  # Binary data that can't be decoded as UTF-8
+        
+        with patch.object(vpc_manager, '_get_vpc_client') as mock_get_client:
+            mock_service = Mock()
+            mock_get_client.return_value = mock_service
+            mock_service.get_vpn_server_client_configuration.return_value.get_result.return_value = config_binary
+            
+            result = await vpc_manager.get_vpn_server_client_configuration('vpn-server-1', 'us-south')
+            
+            assert result['vpn_server_id'] == 'vpn-server-1'
+            assert result['region'] == 'us-south'
+            assert 'client_configuration_content' in result
+            assert result['metadata']['encoding'] == 'base64'
+            # Should be base64 encoded
+            import base64
+            expected_content = base64.b64encode(config_binary).decode('ascii')
+            assert result['client_configuration_content'] == expected_content
+            
+            mock_service.get_vpn_server_client_configuration.assert_called_once_with('vpn-server-1')
+
+    @pytest.mark.asyncio
+    async def test_list_vpn_server_routes(self, vpc_manager):
+        """Test listing VPN server routes"""
+        routes_data = {
+            'routes': [
+                {
+                    'id': 'route-1',
+                    'name': 'main-route',
+                    'destination': '10.0.0.0/24',
+                    'action': 'translate'
+                },
+                {
+                    'id': 'route-2',
+                    'name': 'secondary-route', 
+                    'destination': '192.168.0.0/16',
+                    'action': 'translate'
+                }
+            ]
+        }
+        
+        with patch.object(vpc_manager, '_get_vpc_client') as mock_get_client:
+            mock_service = Mock()
+            mock_get_client.return_value = mock_service
+            mock_service.list_vpn_server_routes.return_value.get_result.return_value = routes_data
+            
+            result = await vpc_manager.list_vpn_server_routes('vpn-server-1', 'us-south')
+            
+            assert result['vpn_server_id'] == 'vpn-server-1'
+            assert result['region'] == 'us-south'
+            assert result['count'] == 2
+            assert len(result['routes']) == 2
+            assert result['routes'][0]['id'] == 'route-1'
+            assert result['routes'][0]['region'] == 'us-south'
+            
+            mock_service.list_vpn_server_routes.assert_called_once_with('vpn-server-1', limit=50)
+
+    @pytest.mark.asyncio
+    async def test_list_vpn_server_routes_with_pagination(self, vpc_manager):
+        """Test listing VPN server routes with pagination"""
+        routes_data = {'routes': []}
+        
+        with patch.object(vpc_manager, '_get_vpc_client') as mock_get_client:
+            mock_service = Mock()
+            mock_get_client.return_value = mock_service
+            mock_service.list_vpn_server_routes.return_value.get_result.return_value = routes_data
+            
+            result = await vpc_manager.list_vpn_server_routes('vpn-server-1', 'us-south', limit=25, start='next-token')
+            
+            assert result['count'] == 0
+            mock_service.list_vpn_server_routes.assert_called_once_with('vpn-server-1', limit=25, start='next-token')
+
+    @pytest.mark.asyncio
+    async def test_ike_policy_api_exception(self, vpc_manager):
+        """Test IKE policy API exception handling"""
+        with patch.object(vpc_manager, '_get_vpc_client') as mock_get_client:
+            mock_service = Mock()
+            mock_get_client.return_value = mock_service
+            mock_service.get_ike_policy.side_effect = ApiException('Not Found')
+            
+            with pytest.raises(ApiException):
+                await vpc_manager.get_ike_policy('ike-policy-1', 'us-south')
+
+    @pytest.mark.asyncio
+    async def test_ipsec_policy_api_exception(self, vpc_manager):
+        """Test IPsec policy API exception handling"""
+        with patch.object(vpc_manager, '_get_vpc_client') as mock_get_client:
+            mock_service = Mock()
+            mock_get_client.return_value = mock_service
+            mock_service.get_ipsec_policy.side_effect = ApiException('Not Found')
+            
+            with pytest.raises(ApiException):
+                await vpc_manager.get_ipsec_policy('ipsec-policy-1', 'us-south')
+
+    @pytest.mark.asyncio
+    async def test_vpn_server_client_configuration_api_exception(self, vpc_manager):
+        """Test VPN server client configuration API exception handling"""
+        with patch.object(vpc_manager, '_get_vpc_client') as mock_get_client:
+            mock_service = Mock()
+            mock_get_client.return_value = mock_service
+            mock_service.get_vpn_server_client_configuration.side_effect = ApiException('Not Found')
+            
+            with pytest.raises(ApiException):
+                await vpc_manager.get_vpn_server_client_configuration('vpn-server-1', 'us-south')
+
+    @pytest.mark.asyncio
+    async def test_vpn_server_routes_api_exception(self, vpc_manager):
+        """Test VPN server routes API exception handling"""
+        with patch.object(vpc_manager, '_get_vpc_client') as mock_get_client:
+            mock_service = Mock()
+            mock_get_client.return_value = mock_service
+            mock_service.list_vpn_server_routes.side_effect = ApiException('Not Found')
+            
+            with pytest.raises(ApiException):
+                await vpc_manager.list_vpn_server_routes('vpn-server-1', 'us-south')
+
+    @pytest.mark.asyncio
+    async def test_list_vpn_server_clients(self, vpc_manager):
+        """Test listing VPN server clients"""
+        clients_data = {
+            'clients': [
+                {
+                    'id': 'client-1',
+                    'common_name': 'user1.example.com',
+                    'username': 'user1',
+                    'status': 'connected',
+                    'client_ip': '10.240.0.4',
+                    'created_at': '2023-01-01T00:00:00Z',
+                    'connected_at': '2023-01-01T10:00:00Z'
+                },
+                {
+                    'id': 'client-2',
+                    'common_name': 'user2.example.com',
+                    'username': 'user2',
+                    'status': 'disconnected',
+                    'client_ip': '10.240.0.5',
+                    'created_at': '2023-01-02T00:00:00Z'
+                }
+            ],
+            'total_count': 2,
+            'limit': 50
+        }
+        
+        with patch.object(vpc_manager, '_get_vpc_client') as mock_get_client:
+            mock_service = Mock()
+            mock_get_client.return_value = mock_service
+            mock_service.list_vpn_server_clients.return_value.get_result.return_value = clients_data
+            
+            result = await vpc_manager.list_vpn_server_clients('vpn-server-1', 'us-south')
+            
+            assert result['vpn_server_id'] == 'vpn-server-1'
+            assert result['region'] == 'us-south'
+            assert result['count'] == 2
+            assert result['total_count'] == 2
+            assert len(result['clients']) == 2
+            assert result['clients'][0]['id'] == 'client-1'
+            assert result['clients'][0]['region'] == 'us-south'
+            assert result['clients'][0]['vpn_server_id'] == 'vpn-server-1'
+            assert result['clients'][0]['status'] == 'connected'
+            
+            mock_service.list_vpn_server_clients.assert_called_once_with('vpn-server-1', limit=50)
+
+    @pytest.mark.asyncio
+    async def test_list_vpn_server_clients_with_pagination_and_sort(self, vpc_manager):
+        """Test listing VPN server clients with pagination and sort"""
+        clients_data = {
+            'clients': [
+                {
+                    'id': 'client-3',
+                    'common_name': 'user3.example.com',
+                    'username': 'user3',
+                    'status': 'connected',
+                    'created_at': '2023-01-03T00:00:00Z'
+                }
+            ],
+            'total_count': 1,
+            'limit': 25
+        }
+        
+        with patch.object(vpc_manager, '_get_vpc_client') as mock_get_client:
+            mock_service = Mock()
+            mock_get_client.return_value = mock_service
+            mock_service.list_vpn_server_clients.return_value.get_result.return_value = clients_data
+            
+            result = await vpc_manager.list_vpn_server_clients(
+                'vpn-server-1', 'us-south', limit=25, start='next-token', sort='created_at'
+            )
+            
+            assert result['count'] == 1
+            assert result['total_count'] == 1
+            assert result['limit'] == 25
+            
+            mock_service.list_vpn_server_clients.assert_called_once_with(
+                'vpn-server-1', limit=25, start='next-token', sort='created_at'
+            )
+
+    @pytest.mark.asyncio
+    async def test_list_vpn_server_clients_api_exception(self, vpc_manager):
+        """Test VPN server clients API exception handling"""
+        with patch.object(vpc_manager, '_get_vpc_client') as mock_get_client:
+            mock_service = Mock()
+            mock_get_client.return_value = mock_service
+            mock_service.list_vpn_server_clients.side_effect = ApiException('Not Found')
+            
+            with pytest.raises(ApiException):
+                await vpc_manager.list_vpn_server_clients('vpn-server-1', 'us-south')
