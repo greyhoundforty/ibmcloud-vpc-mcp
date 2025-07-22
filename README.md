@@ -182,6 +182,23 @@ docker-compose up -d
 | `get_backup_policy_summary` | Get comprehensive backup policy information | `backup_policy_id`, `region` |
 | `analyze_backup_policies` | Analyze backup policy health and compliance | `region`, `resource_group_id` (optional) |
 
+### VPN Gateway Management
+| Tool Name | Description | Key Parameters |
+|-----------|-------------|----------------|
+| `list_vpn_gateways` | List VPN gateways with optional VPC filtering | `region`, `vpc_id` (optional), `limit` (optional), `start` (optional) |
+| `get_vpn_gateway` | Get detailed VPN gateway information | `vpn_gateway_id`, `region` |
+| `get_ike_policy` | Get IKE policy details for VPN gateways | `ike_policy_id`, `region` |
+| `get_ipsec_policy` | Get IPsec policy details for VPN gateways | `ipsec_policy_id`, `region` |
+
+### VPN Server Management
+| Tool Name | Description | Key Parameters |
+|-----------|-------------|----------------|
+| `list_vpn_servers` | List VPN servers with optional name filtering | `region`, `name` (optional), `limit` (optional), `start` (optional) |
+| `get_vpn_server` | Get detailed VPN server info including authentication methods | `vpn_server_id`, `region` |
+| `get_vpn_server_client_configuration` | Get OpenVPN client configuration files | `vpn_server_id`, `region` |
+| `list_vpn_server_clients` | List clients connected to a VPN server | `vpn_server_id`, `region`, `limit` (optional), `start` (optional), `sort` (optional) |
+| `list_vpn_server_routes` | List routing configuration for VPN servers | `vpn_server_id`, `region`, `limit` (optional), `start` (optional) |
+
 ## 🎯 Usage Examples
 
 ### Basic VPC Discovery
@@ -247,6 +264,37 @@ get_backup_policy_summary --backup_policy_id policy-12345 --region us-south
 analyze_backup_policies --region us-south
 ```
 
+### VPN Management
+```bash
+# List VPN gateways
+list_vpn_gateways --region us-south
+
+# List VPN gateways for specific VPC
+list_vpn_gateways --region us-south --vpc_id vpc-12345
+
+# Get VPN gateway details
+get_vpn_gateway --vpn_gateway_id vpn-gateway-12345 --region us-south
+
+# Get IKE/IPsec policy details
+get_ike_policy --ike_policy_id ike-policy-12345 --region us-south
+get_ipsec_policy --ipsec_policy_id ipsec-policy-12345 --region us-south
+
+# List VPN servers
+list_vpn_servers --region us-south
+
+# Get VPN server details with authentication info
+get_vpn_server --vpn_server_id vpn-server-12345 --region us-south
+
+# Get OpenVPN client configuration
+get_vpn_server_client_configuration --vpn_server_id vpn-server-12345 --region us-south
+
+# List connected clients
+list_vpn_server_clients --vpn_server_id vpn-server-12345 --region us-south
+
+# List VPN server routes
+list_vpn_server_routes --vpn_server_id vpn-server-12345 --region us-south
+```
+
 ## 🤝 Contributing
 
 1. Fork the repository
@@ -273,6 +321,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - **v1.3.0**: Multi-region support and comprehensive summaries
 - **v1.4.0**: Added backup policy management and analysis features
 - **v1.5.0**: Added routing table lookup, snapshots, and improved storage tools
+- **v1.6.0**: Comprehensive VPN management (gateways, servers, clients, policies, configuration)
 
 ---
 

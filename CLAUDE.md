@@ -109,6 +109,8 @@ The server implements the Model Context Protocol (MCP) for standardized tool com
 5. **Storage Operations**: Block volumes, profiles, usage analysis, file shares
 6. **Routing Tables**: List routing tables, get routing table details, lookup by name
 7. **Snapshots**: List snapshots, get snapshot details, usage analysis
+8. **VPN Gateway Management**: List gateways, get gateway details, IKE/IPsec policies
+9. **VPN Server Management**: List servers, get server details with authentication, client configuration, client management, routing
 
 ## Configuration Requirements
 
@@ -240,3 +242,167 @@ table_details = await vpc_manager.get_routing_table(vpc_id, table_id, region)
 - Multi-region operations run sequentially with error isolation
 - Individual tool calls are synchronous for deterministic results
 - Docker containers can run multiple instances for scaling
+
+## VPN Management Features
+
+### VPN Gateway Operations
+The server supports comprehensive VPN Gateway management for site-to-site connectivity:
+
+#### Available Methods (utils.py:920-949, utils.py:1031-1059)
+- **`list_vpn_gateways`**: Lists VPN gateways with optional VPC filtering and pagination
+- **`get_vpn_gateway`**: Gets detailed gateway information 
+- **`get_ike_policy`**: Retrieves IKE policy details for gateway configuration
+- **`get_ipsec_policy`**: Retrieves IPsec policy details for gateway configuration
+
+#### Usage Pattern
+```python
+# List all VPN gateways in region
+gateways = await vpc_manager.list_vpn_gateways('us-south')
+
+# Filter by VPC
+vpc_gateways = await vpc_manager.list_vpn_gateways('us-south', vpc_id='vpc-12345')
+
+# Get detailed gateway information
+gateway_details = await vpc_manager.get_vpn_gateway('vpn-gateway-id', 'us-south')
+
+# Get associated policies
+ike_policy = await vpc_manager.get_ike_policy('ike-policy-id', 'us-south')
+ipsec_policy = await vpc_manager.get_ipsec_policy('ipsec-policy-id', 'us-south')
+```
+
+### VPN Server Operations
+The server supports comprehensive VPN Server management for client access connectivity:
+
+#### Available Methods (utils.py:966-1137)
+- **`list_vpn_servers`**: Lists VPN servers with optional name filtering and pagination
+- **`get_vpn_server`**: Gets detailed server information including authentication methods
+- **`get_vpn_server_client_configuration`**: Retrieves OpenVPN client configuration files
+- **`list_vpn_server_clients`**: Lists clients connected to a VPN server with pagination and sorting
+- **`list_vpn_server_routes`**: Lists routing configuration for VPN servers
+
+#### Enhanced Authentication Support
+The `get_vpn_server` method now includes automatic extraction of authentication information:
+```python
+# Response includes authentication_summary section
+{
+    "authentication_summary": {
+        "certificate_based": {
+            "enabled": True,
+            "certificate_instance": { ... }
+        },
+        "client_authentication": [
+            {"method": "certificate"},
+            {"method": "username"}
+        ]
+    }
+}
+```
+
+#### Client Configuration Handling
+The `get_vpn_server_client_configuration` method handles various data formats:
+- **String Content**: OpenVPN configuration returned as UTF-8 string
+- **Binary Data**: Automatically base64-encoded if UTF-8 decoding fails
+- **Encoding Metadata**: Includes encoding information for client processing
+
+```python
+# Robust client configuration retrieval
+config = await vpc_manager.get_vpn_server_client_configuration('vpn-server-id', 'us-south')
+
+# Response format:
+{
+    "vpn_server_id": "vpn-server-id",
+    "region": "us-south", 
+    "client_configuration_content": "client\ndev tun\nproto udp\n...",
+    "metadata": {
+        "content_type": "openvpn_configuration",
+        "encoding": "utf-8",
+        "description": "OpenVPN client configuration file content"
+    }
+}
+```
+
+#### Client Management
+```python
+# List connected clients with sorting and pagination
+clients = await vpc_manager.list_vpn_server_clients(
+    'vpn-server-id', 
+    'us-south',
+    limit=25,
+    sort='created_at'
+)
+
+# Response includes comprehensive client information
+{
+    "clients": [
+        {
+            "id": "client-1",
+            "common_name": "user1.example.com",
+            "username": "user1", 
+            "status": "connected",
+            "client_ip": "10.240.0.4",
+            "created_at": "2023-01-01T00:00:00Z",
+            "connected_at": "2023-01-01T10:00:00Z",
+            "region": "us-south",
+            "vpn_server_id": "vpn-server-id"
+        }
+    ],
+    "count": 1,
+    "total_count": 15,
+    "limit": 25
+}
+```
+
+### MCP Tools Integration
+All VPN functionality is exposed through MCP tools with comprehensive JSON schemas:
+
+#### VPN Gateway Tools (vpc_mcp_server.py:760-926)
+- `list_vpn_gateways`: With vpc_id filtering and pagination support
+- `get_vpn_gateway`: Detailed gateway information retrieval
+- `get_ike_policy`: IKE policy configuration details  
+- `get_ipsec_policy`: IPsec policy configuration details
+
+#### VPN Server Tools (vpc_mcp_server.py:803-956)
+- `list_vpn_servers`: With name filtering and pagination support
+- `get_vpn_server`: Enhanced with authentication method extraction
+- `get_vpn_server_client_configuration`: Robust client config with encoding handling
+- `list_vpn_server_clients`: Client management with sorting (created_at, common_name, etc.)
+- `list_vpn_server_routes`: Routing configuration management
+
+### Testing Coverage
+Comprehensive unit tests added (test_utils.py:527-1047):
+- **22 VPN-related tests** covering all methods and error conditions
+- **Mock-based testing** following established patterns
+- **Binary data handling** tests for client configurations
+- **Authentication method** extraction validation
+- **Pagination and sorting** functionality testing
+- **API exception handling** for all VPN operations
+
+### Error Handling and Serialization
+- **Robust JSON serialization** for client configurations containing certificates
+- **Binary data support** with automatic base64 encoding when needed
+- **UTF-8 encoding validation** with graceful fallback to character replacement
+- **Structured error responses** with client-safe messaging
+- **Regional context preservation** across all VPN operations
+
+## Recent Session Changes Summary
+
+### Major Features Added
+1. **Complete VPN Gateway Support**: List, get details, and policy management
+2. **Comprehensive VPN Server Management**: Server details, client configuration, client listing, routing
+3. **Enhanced Authentication Detection**: Automatic extraction and summarization of VPN server authentication methods
+4. **Robust Configuration Handling**: Proper serialization of OpenVPN client configurations with certificate data
+5. **Client Management**: Full CRUD operations for VPN server clients with advanced filtering
+
+### Files Modified
+- **`utils.py`**: Added 9 new VPN-related methods (lines 920-1137)
+- **`vpc_mcp_server.py`**: Added 9 new MCP tools and handlers (lines 760-1189)
+- **`test_utils.py`**: Added 22 comprehensive unit tests (lines 527-1047) 
+- **`README.md`**: Updated with VPN tool documentation and usage examples
+- **`CLAUDE.md`**: Enhanced with complete VPN development patterns and usage
+
+### Key Technical Improvements
+- **Serialization Fix**: Resolved 'Response' object attribute errors in client configuration
+- **Authentication Enhancement**: Added automatic authentication method detection and summarization
+- **Data Format Handling**: Proper handling of string vs binary responses from IBM Cloud API
+- **Error Recovery**: Graceful handling of encoding issues and API exceptions
+- **Performance**: Efficient pagination and filtering for large VPN client lists
