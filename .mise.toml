@@ -312,6 +312,79 @@ rm -rf .venv __pycache__ *.pyc
 echo "✅ Development environment cleaned"
 '''
 
+# Branch Management Tasks
+[tasks."git:create-mcpui"]
+description = "Create and switch to mcpui branch"
+alias = "gcm"
+run = '''
+echo "🌿 Creating and switching to mcpui branch"
+git checkout -b mcpui
+echo "✅ Created and switched to mcpui branch"
+echo "🎯 Ready for MCP-UI development"
+'''
+
+[tasks."git:switch-mcpui"]
+description = "Switch to mcpui branch"
+alias = "gsm"
+run = '''
+echo "🌿 Switching to mcpui branch"
+git checkout mcpui
+echo "✅ Switched to mcpui branch"
+'''
+
+[tasks."git:merge-main"]
+description = "Merge latest main into mcpui"
+alias = "gmm"
+run = '''
+echo "🔄 Merging main into mcpui branch"
+git checkout mcpui
+git merge main
+echo "✅ Merged main into mcpui"
+'''
+
+# UI Development Tasks
+[tasks."ui:install"]
+description = "Install mcp-ui dependencies"
+alias = "uii"
+run = '''
+echo "📦 Installing MCP-UI dependencies"
+npm install @mcp-ui/server @mcp-ui/client
+uv pip install jinja2 aiofiles
+echo "✅ UI dependencies installed"
+'''
+
+[tasks."ui:dev"]
+description = "Start UI development server"
+alias = "uid"
+run = '''
+echo "🚀 Starting UI development server"
+python vpc_ui_server.py --dev-mode
+'''
+
+[tasks."ui:test"]
+description = "Test UI components"
+alias = "uit"
+run = '''
+echo "🧪 Testing UI components"
+python -m pytest tests/test_ui_server.py -v
+'''
+
+# Map Development Tasks
+[tasks."map:validate"]
+description = "Validate SVG map structure"
+alias = "mv"
+run = '''
+echo "🗺️  Validating SVG map structure"
+python -c "
+import xml.etree.ElementTree as ET
+try:
+    tree = ET.parse('static/svg/world-map.svg')
+    print('✅ SVG map is valid')
+except Exception as e:
+    print(f'❌ SVG validation failed: {e}')
+"
+'''
+
 # Help task
 [tasks.help]
 description = "Show available tasks"
@@ -329,6 +402,19 @@ echo "  docker:shell    (dsh) - Open shell"
 echo "  docker:clean    (dc)  - Clean up"
 echo "  docker:test     (dt)  - Test container"
 echo ""
+echo "🌿 Git/Branch:"
+echo "  git:create-mcpui (gcm) - Create mcpui branch"
+echo "  git:switch-mcpui (gsm) - Switch to mcpui branch"
+echo "  git:merge-main   (gmm) - Merge main into mcpui"
+echo ""
+echo "🎨 UI Development:"
+echo "  ui:install  (uii) - Install UI dependencies"
+echo "  ui:dev      (uid) - Start UI dev server"
+echo "  ui:test     (uit) - Test UI components"
+echo ""
+echo "🗺️  Map Development:"
+echo "  map:validate (mv) - Validate SVG map"
+echo ""
 echo "🔒 Security:"
 echo "  security:check-ssh (ssh) - Check SSH exposure"
 echo "  security:check-rdp (rdp) - Check RDP exposure"
@@ -344,7 +430,8 @@ echo "  clean - Clean all resources"
 echo "  info  - Show project info"
 echo ""
 echo "💡 Examples:"
-echo "  mise run db && mise run dr  # Build and run"
-echo "  mise run ssh                # Check SSH security"
-echo "  IBMCLOUD_API_KEY=xxx mise run dt  # Test with API key"
+echo "  mise run gcm             # Create mcpui branch"
+echo "  mise run uii && mise run uid  # Install UI deps and start"
+echo "  mise run db && mise run dr    # Build and run"
+echo "  mise run ssh                  # Check SSH security"
 '''
