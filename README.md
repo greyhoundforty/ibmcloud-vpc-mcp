@@ -305,9 +305,9 @@ list_vpn_server_routes --vpn_server_id vpn-server-12345 --region us-south
 
 ## 📚 Additional Resources
 
-- **[CLAUDE.md](./CLAUDE.md)**: Comprehensive development guide for Claude Code instances
+- **[CLAUDE.md](./debug/CLAUDE.md)**: Comprehensive development guide for Claude Code instances
 - **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)**: Detailed troubleshooting guide
-- **[test_all_tools.md](./test_all_tools.md)**: Commands to test all tools after deployment
+- **[test_all_tools.md](./debug/test_all_tools.md)**: Commands to test all tools after deployment
 
 ## 📝 License
 
