@@ -1208,6 +1208,107 @@ class VPCManager:
             logger.error(f"Error listing IPs for virtual network interface {vni_id} in region {region}: {e}")
             raise
 
+    async def list_flow_log_collectors(self, region: str, vpc_id: Optional[str] = None,
+                                        resource_group_id: Optional[str] = None,
+                                        name: Optional[str] = None,
+                                        target_id: Optional[str] = None,
+                                        target_resource_type: Optional[str] = None,
+                                        limit: int = 50, start: Optional[str] = None) -> Dict[str, Any]:
+        """List flow log collectors in a region"""
+        try:
+            service = self._get_vpc_client(region)
+
+            kwargs = {"limit": limit}
+            if start:
+                kwargs["start"] = start
+            if vpc_id:
+                kwargs["vpc_id"] = vpc_id
+            if resource_group_id:
+                kwargs["resource_group_id"] = resource_group_id
+            if name:
+                kwargs["name"] = name
+            if target_id:
+                kwargs["target_id"] = target_id
+            if target_resource_type:
+                kwargs["target_resource_type"] = target_resource_type
+
+            response = service.list_flow_log_collectors(**kwargs).get_result()
+            collectors = response.get('flow_log_collectors', [])
+
+            for collector in collectors:
+                collector['region'] = region
+
+            return {
+                'flow_log_collectors': collectors,
+                'count': len(collectors),
+                'region': region,
+                'total_count': response.get('total_count', len(collectors)),
+                'limit': response.get('limit', limit)
+            }
+
+        except ApiException as e:
+            logger.error(f"Error listing flow log collectors in region {region}: {e}")
+            raise
+
+    async def get_flow_log_collector(self, flow_log_collector_id: str, region: str) -> Dict[str, Any]:
+        """Get detailed information about a specific flow log collector"""
+        try:
+            service = self._get_vpc_client(region)
+            response = service.get_flow_log_collector(flow_log_collector_id).get_result()
+            response['region'] = region
+            return response
+
+        except ApiException as e:
+            logger.error(f"Error getting flow log collector {flow_log_collector_id} in region {region}: {e}")
+            raise
+
+    async def analyze_flow_log_collectors(self, region: str, vpc_id: Optional[str] = None) -> Dict[str, Any]:
+        """Analyze flow log collectors in a region, grouped by target resource type"""
+        try:
+            collectors_result = await self.list_flow_log_collectors(region, vpc_id=vpc_id, limit=100)
+            collectors = collectors_result.get('flow_log_collectors', [])
+
+            active = [c for c in collectors if c.get('active', False)]
+            inactive = [c for c in collectors if not c.get('active', False)]
+
+            by_target_type: Dict[str, Any] = {}
+            for collector in collectors:
+                target = collector.get('target', {})
+                resource_type = target.get('resource_type', 'unknown')
+                by_target_type.setdefault(resource_type, []).append({
+                    'id': collector.get('id'),
+                    'name': collector.get('name'),
+                    'active': collector.get('active'),
+                    'storage_bucket': collector.get('storage_bucket', {}).get('name'),
+                    'target_id': target.get('id'),
+                    'target_name': target.get('name'),
+                    'created_at': collector.get('created_at'),
+                    'lifecycle_state': collector.get('lifecycle_state')
+                })
+
+            return {
+                'region': region,
+                'vpc_id': vpc_id,
+                'total_collectors': len(collectors),
+                'active_count': len(active),
+                'inactive_count': len(inactive),
+                'collectors_by_target_type': by_target_type,
+                'summary': {
+                    'active_collectors': [
+                        {'id': c.get('id'), 'name': c.get('name'), 'target': c.get('target', {}).get('name')}
+                        for c in active
+                    ],
+                    'inactive_collectors': [
+                        {'id': c.get('id'), 'name': c.get('name'), 'target': c.get('target', {}).get('name')}
+                        for c in inactive
+                    ]
+                }
+            }
+
+        except ApiException as e:
+            logger.error(f"Error analyzing flow log collectors in region {region}: {e}")
+            raise
+
     async def list_vpn_server_routes(self, vpn_server_id: str, region: str, limit: int = 50, start: Optional[str] = None) -> Dict[str, Any]:
         """List routes for a VPN server"""
         try:
