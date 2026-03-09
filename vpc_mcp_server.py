@@ -953,10 +953,84 @@ class VPCMCPServer:
                 },
                 "required": ["vpn_server_id", "region"]
             }
+        ),
+        Tool(
+            name="list_virtual_network_interfaces",
+            description="List virtual network interfaces (VNIs) in a region",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "region": {
+                        "type": "string",
+                        "description": "Region name"
+                    },
+                    "resource_group_id": {
+                        "type": "string",
+                        "description": "Filter by resource group ID"
+                    },
+                    "limit": {
+                        "type": "number",
+                        "description": "Maximum number of VNIs to return (default 50)"
+                    },
+                    "start": {
+                        "type": "string",
+                        "description": "Pagination start token"
+                    }
+                },
+                "required": ["region"]
+            }
+        ),
+        Tool(
+            name="get_virtual_network_interface",
+            description="Get detailed information about a specific virtual network interface (VNI)",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "vni_id": {
+                        "type": "string",
+                        "description": "Virtual network interface ID"
+                    },
+                    "region": {
+                        "type": "string",
+                        "description": "Region name"
+                    }
+                },
+                "required": ["vni_id", "region"]
+            }
+        ),
+        Tool(
+            name="list_virtual_network_interface_ips",
+            description="List reserved IPs bound to a virtual network interface (VNI)",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "vni_id": {
+                        "type": "string",
+                        "description": "Virtual network interface ID"
+                    },
+                    "region": {
+                        "type": "string",
+                        "description": "Region name"
+                    },
+                    "limit": {
+                        "type": "number",
+                        "description": "Maximum number of IPs to return (default 50)"
+                    },
+                    "start": {
+                        "type": "string",
+                        "description": "Pagination start token"
+                    },
+                    "sort": {
+                        "type": "string",
+                        "description": "Sort field (e.g., 'address', 'name')"
+                    }
+                },
+                "required": ["vni_id", "region"]
+            }
         )
     ]
-    
-        
+
+
         @self.server.call_tool()
         async def call_tool(name: str, arguments: Dict[str, Any]) -> List[TextContent]:
             try:
@@ -1182,6 +1256,26 @@ class VPCMCPServer:
                 elif name == "list_vpn_server_clients":
                     result = await self.vpc_manager.list_vpn_server_clients(
                         arguments['vpn_server_id'],
+                        arguments['region'],
+                        arguments.get('limit', 50),
+                        arguments.get('start'),
+                        arguments.get('sort')
+                    )
+                elif name == "list_virtual_network_interfaces":
+                    result = await self.vpc_manager.list_virtual_network_interfaces(
+                        arguments['region'],
+                        arguments.get('resource_group_id'),
+                        arguments.get('limit', 50),
+                        arguments.get('start')
+                    )
+                elif name == "get_virtual_network_interface":
+                    result = await self.vpc_manager.get_virtual_network_interface(
+                        arguments['vni_id'],
+                        arguments['region']
+                    )
+                elif name == "list_virtual_network_interface_ips":
+                    result = await self.vpc_manager.list_virtual_network_interface_ips(
+                        arguments['vni_id'],
                         arguments['region'],
                         arguments.get('limit', 50),
                         arguments.get('start'),

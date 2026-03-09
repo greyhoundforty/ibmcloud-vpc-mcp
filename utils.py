@@ -1136,6 +1136,78 @@ class VPCManager:
             logger.error(f"Error listing VPN server clients for {vpn_server_id} in region {region}: {e}")
             raise
 
+    async def list_virtual_network_interfaces(self, region: str, resource_group_id: Optional[str] = None, limit: int = 50, start: Optional[str] = None) -> Dict[str, Any]:
+        """List virtual network interfaces in a region"""
+        try:
+            service = self._get_vpc_client(region)
+
+            kwargs = {"limit": limit}
+            if start:
+                kwargs["start"] = start
+            if resource_group_id:
+                kwargs["resource_group_id"] = resource_group_id
+
+            response = service.list_virtual_network_interfaces(**kwargs).get_result()
+            vnis = response.get('virtual_network_interfaces', [])
+
+            for vni in vnis:
+                vni['region'] = region
+
+            return {
+                'virtual_network_interfaces': vnis,
+                'count': len(vnis),
+                'region': region,
+                'total_count': response.get('total_count', len(vnis)),
+                'limit': response.get('limit', limit)
+            }
+
+        except ApiException as e:
+            logger.error(f"Error listing virtual network interfaces in region {region}: {e}")
+            raise
+
+    async def get_virtual_network_interface(self, vni_id: str, region: str) -> Dict[str, Any]:
+        """Get detailed information about a specific virtual network interface"""
+        try:
+            service = self._get_vpc_client(region)
+            response = service.get_virtual_network_interface(vni_id).get_result()
+
+            response['region'] = region
+
+            return response
+
+        except ApiException as e:
+            logger.error(f"Error getting virtual network interface {vni_id} in region {region}: {e}")
+            raise
+
+    async def list_virtual_network_interface_ips(self, vni_id: str, region: str, limit: int = 50, start: Optional[str] = None, sort: Optional[str] = None) -> Dict[str, Any]:
+        """List reserved IPs bound to a virtual network interface"""
+        try:
+            service = self._get_vpc_client(region)
+
+            kwargs = {"limit": limit}
+            if start:
+                kwargs["start"] = start
+            if sort:
+                kwargs["sort"] = sort
+
+            response = service.list_virtual_network_interface_ips(vni_id, **kwargs).get_result()
+            ips = response.get('ips', [])
+
+            for ip in ips:
+                ip['region'] = region
+
+            return {
+                'virtual_network_interface_id': vni_id,
+                'ips': ips,
+                'count': len(ips),
+                'region': region,
+                'total_count': response.get('total_count', len(ips))
+            }
+
+        except ApiException as e:
+            logger.error(f"Error listing IPs for virtual network interface {vni_id} in region {region}: {e}")
+            raise
+
     async def list_vpn_server_routes(self, vpn_server_id: str, region: str, limit: int = 50, start: Optional[str] = None) -> Dict[str, Any]:
         """List routes for a VPN server"""
         try:
