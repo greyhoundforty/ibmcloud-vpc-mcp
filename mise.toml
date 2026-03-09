@@ -60,7 +60,7 @@ build-and-update = """
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 CONTAINER_NAME="${DOCKER_IMAGE:-ibmcloud-vpc-mcp}"
 TAG="${CONTAINER_NAME}:${TIMESTAMP}"
-CONFIG_FILE="$HOME/.config/claude-desktop/claude_desktop_config.json"
+CONFIG_FILE="$HOME/Library/Application Support/Claude/claude_desktop_config.json"
 
 echo "Building container with tag: ${TAG}"
 docker build -t "${TAG}" .

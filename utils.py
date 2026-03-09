@@ -77,6 +77,35 @@ class VPCManager:
             'regions_checked': regions_to_check
         }
     
+    async def get_regional_vpc_counts(self) -> List[Dict[str, Any]]:
+        """Return VPC counts and names per region for all known regions.
+
+        Iterates over the API-reported regions and returns a list of dicts
+        suitable for feeding into vpc_ui.build_regional_graph_html().
+        """
+        if not self.regions:
+            await self.list_regions()
+
+        results: List[Dict[str, Any]] = []
+        for region_name in self.regions:
+            try:
+                service = self._get_vpc_client(region_name)
+                response = service.list_vpcs().get_result()
+                vpcs = response.get('vpcs', [])
+                results.append({
+                    'region_id': region_name,
+                    'vpc_count': len(vpcs),
+                    'vpc_names': [v.get('name', v.get('id', '')) for v in vpcs],
+                })
+            except ApiException as e:
+                logger.warning(f"Could not fetch VPCs for region {region_name}: {e}")
+                results.append({
+                    'region_id': region_name,
+                    'vpc_count': 0,
+                    'vpc_names': [],
+                })
+        return results
+
     async def get_vpc(self, vpc_id: str, region: str) -> Dict[str, Any]:
         """Get details of a specific VPC"""
         service = self._get_vpc_client(region)
@@ -1436,7 +1465,7 @@ def analyze_backup_policy_health(policy: Dict[str, Any], jobs: List[Dict[str, An
         # Check for very old last job
         if recent_jobs:
             try:
-                from datetime import datetime, timedelta
+                from datetime import datetime
                 last_job_date = datetime.fromisoformat(recent_jobs[0]['created_at'].replace('Z', '+00:00'))
                 days_ago = (datetime.now().astimezone() - last_job_date).days
                 
