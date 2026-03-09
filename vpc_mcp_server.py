@@ -10,12 +10,19 @@ from typing import Dict, List, Any
 import asyncio
 
 from mcp.server import Server
-from mcp.types import Tool, TextContent
+from mcp.types import (
+    EmbeddedResource,
+    Resource,
+    TextContent,
+    TextResourceContents,
+    Tool,
+)
 import mcp.server.stdio
 
 from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
 from utils import VPCManager
 from storage import StorageManager
+from vpc_ui import REGIONAL_GRAPH_URI, create_regional_graph_resource
 
 
 # Configure logging
@@ -1106,85 +1113,54 @@ class VPCMCPServer:
                 "required": ["region"]
             }
         ),
-        # Transit Gateway tools (global service — no region parameter)
         Tool(
-            name="list_transit_gateways",
-            description="List all IBM Cloud Transit Gateways. Transit Gateway is a global service so no region is required.",
+            name="show_regional_vpc_graph",
+            description=(
+                "Display an interactive world-map graph of all IBM Cloud regions "
+                "showing VPC counts. Returns a clickable HTML visualisation "
+                "rendered inline by MCP-UI compatible hosts."
+            ),
             inputSchema={
                 "type": "object",
-                "properties": {
-                    "limit": {
-                        "type": "number",
-                        "description": "Maximum number of gateways to return (default 50)"
-                    },
-                    "start": {
-                        "type": "string",
-                        "description": "Pagination start token"
-                    }
-                },
-                "required": []
-            }
-        ),
-        Tool(
-            name="get_transit_gateway",
-            description="Get detailed information about a specific Transit Gateway, including its routing type, location, and lifecycle state.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "transit_gateway_id": {
-                        "type": "string",
-                        "description": "Transit Gateway ID"
-                    }
-                },
-                "required": ["transit_gateway_id"]
-            }
-        ),
-        Tool(
-            name="list_transit_gateway_connections",
-            description="List all connections attached to a Transit Gateway. Connections represent VPCs, classic infrastructure, Direct Link, or Power Virtual Server networks connected through the gateway.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "transit_gateway_id": {
-                        "type": "string",
-                        "description": "Transit Gateway ID"
-                    },
-                    "name": {
-                        "type": "string",
-                        "description": "Filter connections by name (optional)"
-                    },
-                    "limit": {
-                        "type": "number",
-                        "description": "Maximum number of connections to return (default 50)"
-                    },
-                    "start": {
-                        "type": "string",
-                        "description": "Pagination start token"
-                    }
-                },
-                "required": ["transit_gateway_id"]
-            }
-        ),
-        Tool(
-            name="get_transit_gateway_connection",
-            description="Get detailed information about a specific connection on a Transit Gateway.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "transit_gateway_id": {
-                        "type": "string",
-                        "description": "Transit Gateway ID"
-                    },
-                    "connection_id": {
-                        "type": "string",
-                        "description": "Connection ID"
-                    }
-                },
-                "required": ["transit_gateway_id", "connection_id"]
+                "properties": {}
             }
         ),
     ]
 
+        @self.server.list_resources()
+        async def list_resources() -> List[Resource]:
+            return [
+                Resource(
+                    uri=REGIONAL_GRAPH_URI,
+                    name="IBM Cloud VPC Regional Graph",
+                    description=(
+                        "Interactive SVG world-map showing IBM Cloud regions "
+                        "with VPC counts. Call show_regional_vpc_graph to "
+                        "populate with live data."
+                    ),
+                    mimeType="text/html",
+                )
+            ]
+
+        @self.server.read_resource()
+        async def read_resource(uri: str) -> List[TextResourceContents]:
+            if str(uri) == REGIONAL_GRAPH_URI:
+                if not self.vpc_manager:
+                    api_key = os.environ.get('IBMCLOUD_API_KEY')
+                    if not api_key:
+                        raise ValueError("IBMCLOUD_API_KEY environment variable not set")
+                    authenticator = IAMAuthenticator(apikey=api_key)
+                    self.vpc_manager = VPCManager(authenticator)
+                regions_data = await self.vpc_manager.get_regional_vpc_counts()
+                ui_resource = create_regional_graph_resource(regions_data)
+                return [
+                    TextResourceContents(
+                        uri=REGIONAL_GRAPH_URI,
+                        mimeType="text/html",
+                        text=ui_resource.resource.text,
+                    )
+                ]
+            raise ValueError(f"Unknown resource URI: {uri}")
 
         @self.server.call_tool()
         async def call_tool(name: str, arguments: Dict[str, Any]) -> List[TextContent]:
@@ -1457,31 +1433,22 @@ class VPCMCPServer:
                         arguments['region'],
                         arguments.get('vpc_id')
                     )
-                # Transit Gateway handlers
-                elif name == "list_transit_gateways":
-                    result = await self.vpc_manager.list_transit_gateways(
-                        arguments.get('limit', 50),
-                        arguments.get('start'),
-                    )
-                elif name == "get_transit_gateway":
-                    result = await self.vpc_manager.get_transit_gateway(
-                        arguments['transit_gateway_id'],
-                    )
-                elif name == "list_transit_gateway_connections":
-                    result = await self.vpc_manager.list_transit_gateway_connections(
-                        arguments['transit_gateway_id'],
-                        arguments.get('name'),
-                        arguments.get('limit', 50),
-                        arguments.get('start'),
-                    )
-                elif name == "get_transit_gateway_connection":
-                    result = await self.vpc_manager.get_transit_gateway_connection(
-                        arguments['transit_gateway_id'],
-                        arguments['connection_id'],
-                    )
+                elif name == "show_regional_vpc_graph":
+                    regions_data = await self.vpc_manager.get_regional_vpc_counts()
+                    ui_resource = create_regional_graph_resource(regions_data)
+                    return [
+                        EmbeddedResource(
+                            type="resource",
+                            resource=TextResourceContents(
+                                uri=REGIONAL_GRAPH_URI,
+                                mimeType="text/html",
+                                text=ui_resource.resource.text,
+                            ),
+                        )
+                    ]
                 else:
                     raise ValueError(f"Unknown tool: {name}")
-                
+
                 return [TextContent(
                     type="text",
                     text=json.dumps(result, indent=2)
