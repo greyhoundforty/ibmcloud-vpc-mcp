@@ -1027,7 +1027,85 @@ class VPCMCPServer:
                 },
                 "required": ["vni_id", "region"]
             }
-        )
+        ),
+        Tool(
+            name="list_flow_log_collectors",
+            description="List flow log collectors in a region with optional filtering",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "region": {
+                        "type": "string",
+                        "description": "Region name"
+                    },
+                    "vpc_id": {
+                        "type": "string",
+                        "description": "Filter by VPC ID (optional)"
+                    },
+                    "resource_group_id": {
+                        "type": "string",
+                        "description": "Filter by resource group ID (optional)"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Filter by collector name (optional)"
+                    },
+                    "target_id": {
+                        "type": "string",
+                        "description": "Filter by target resource ID (optional)"
+                    },
+                    "target_resource_type": {
+                        "type": "string",
+                        "description": "Filter by target resource type: instance, network_interface, subnet, vpc (optional)"
+                    },
+                    "limit": {
+                        "type": "number",
+                        "description": "Maximum number of collectors to return (default 50)"
+                    },
+                    "start": {
+                        "type": "string",
+                        "description": "Pagination start token"
+                    }
+                },
+                "required": ["region"]
+            }
+        ),
+        Tool(
+            name="get_flow_log_collector",
+            description="Get detailed information about a specific flow log collector",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "flow_log_collector_id": {
+                        "type": "string",
+                        "description": "Flow log collector ID"
+                    },
+                    "region": {
+                        "type": "string",
+                        "description": "Region name"
+                    }
+                },
+                "required": ["flow_log_collector_id", "region"]
+            }
+        ),
+        Tool(
+            name="analyze_flow_log_collectors",
+            description="Analyze flow log collectors in a region, showing active/inactive status grouped by target resource type",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "region": {
+                        "type": "string",
+                        "description": "Region name"
+                    },
+                    "vpc_id": {
+                        "type": "string",
+                        "description": "Filter by VPC ID (optional)"
+                    }
+                },
+                "required": ["region"]
+            }
+        ),
     ]
 
 
@@ -1280,6 +1358,27 @@ class VPCMCPServer:
                         arguments.get('limit', 50),
                         arguments.get('start'),
                         arguments.get('sort')
+                    )
+                elif name == "list_flow_log_collectors":
+                    result = await self.vpc_manager.list_flow_log_collectors(
+                        arguments['region'],
+                        arguments.get('vpc_id'),
+                        arguments.get('resource_group_id'),
+                        arguments.get('name'),
+                        arguments.get('target_id'),
+                        arguments.get('target_resource_type'),
+                        arguments.get('limit', 50),
+                        arguments.get('start')
+                    )
+                elif name == "get_flow_log_collector":
+                    result = await self.vpc_manager.get_flow_log_collector(
+                        arguments['flow_log_collector_id'],
+                        arguments['region']
+                    )
+                elif name == "analyze_flow_log_collectors":
+                    result = await self.vpc_manager.analyze_flow_log_collectors(
+                        arguments['region'],
+                        arguments.get('vpc_id')
                     )
                 else:
                     raise ValueError(f"Unknown tool: {name}")
