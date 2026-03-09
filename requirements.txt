@@ -7,6 +7,7 @@ h11==0.16.0
 httpcore==1.0.9
 httpx==0.28.1
 httpx-sse==0.4.0
+ibm-cloud-networking-services==0.29.0
 ibm-cloud-sdk-core==3.23.0
 ibm-platform-services==0.66.0
 ibm-vpc==0.28.0

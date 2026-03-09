@@ -10,6 +10,7 @@ from datetime import datetime
 import ibm_vpc
 from ibm_cloud_sdk_core import ApiException
 from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
+from ibm_cloud_networking_services import TransitGatewayApisV1
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,17 @@ class VPCManager:
         self.authenticator = authenticator
         self.vpc_clients = {}  # Cache VPC clients by region
         self.regions = []
+        self._tgw_client: Optional[TransitGatewayApisV1] = None
 
+
+    def _get_tgw_client(self) -> TransitGatewayApisV1:
+        """Get or create the (global) Transit Gateway client."""
+        if self._tgw_client is None:
+            self._tgw_client = TransitGatewayApisV1(
+                version='2024-06-20',
+                authenticator=self.authenticator,
+            )
+        return self._tgw_client
 
     def _get_vpc_client(self, region: str) -> ibm_vpc.VpcV1:
         """Get or create VPC client for a specific region"""
@@ -1309,6 +1320,74 @@ class VPCManager:
             logger.error(f"Error analyzing flow log collectors in region {region}: {e}")
             raise
 
+    # ------------------------------------------------------------------
+    # Transit Gateway methods
+    # ------------------------------------------------------------------
+
+    async def list_transit_gateways(self, limit: int = 50,
+                                    start: Optional[str] = None) -> Dict[str, Any]:
+        """List all Transit Gateways (global service, not region-scoped)."""
+        try:
+            client = self._get_tgw_client()
+            response = client.list_transit_gateways(
+                limit=limit,
+                start=start,
+            ).get_result()
+            gateways = response.get('transit_gateways', [])
+            return {
+                'transit_gateways': gateways,
+                'count': len(gateways),
+                'total_count': response.get('total_count', len(gateways)),
+                'limit': response.get('limit', limit),
+            }
+        except ApiException as e:
+            logger.error(f"Error listing transit gateways: {e}")
+            raise
+
+    async def get_transit_gateway(self, transit_gateway_id: str) -> Dict[str, Any]:
+        """Get details for a specific Transit Gateway."""
+        try:
+            client = self._get_tgw_client()
+            return client.get_transit_gateway(transit_gateway_id).get_result()
+        except ApiException as e:
+            logger.error(f"Error getting transit gateway {transit_gateway_id}: {e}")
+            raise
+
+    async def list_transit_gateway_connections(self, transit_gateway_id: str,
+                                               name: Optional[str] = None,
+                                               limit: int = 50,
+                                               start: Optional[str] = None) -> Dict[str, Any]:
+        """List connections for a Transit Gateway."""
+        try:
+            client = self._get_tgw_client()
+            response = client.list_transit_gateway_connections(
+                transit_gateway_id=transit_gateway_id,
+                name=name,
+                limit=limit,
+                start=start,
+            ).get_result()
+            connections = response.get('connections', [])
+            return {
+                'transit_gateway_id': transit_gateway_id,
+                'connections': connections,
+                'count': len(connections),
+                'total_count': response.get('total_count', len(connections)),
+                'limit': response.get('limit', limit),
+            }
+        except ApiException as e:
+            logger.error(f"Error listing connections for transit gateway {transit_gateway_id}: {e}")
+            raise
+
+    async def get_transit_gateway_connection(self, transit_gateway_id: str,
+                                             connection_id: str) -> Dict[str, Any]:
+        """Get details for a specific Transit Gateway connection."""
+        try:
+            client = self._get_tgw_client()
+            return client.get_transit_gateway_connection(transit_gateway_id, connection_id).get_result()
+        except ApiException as e:
+            logger.error(f"Error getting connection {connection_id} for transit gateway {transit_gateway_id}: {e}")
+            raise
+
     async def list_vpn_server_routes(self, vpn_server_id: str, region: str, limit: int = 50, start: Optional[str] = None) -> Dict[str, Any]:
         """List routes for a VPN server"""
         try:
@@ -1436,7 +1515,7 @@ def analyze_backup_policy_health(policy: Dict[str, Any], jobs: List[Dict[str, An
         # Check for very old last job
         if recent_jobs:
             try:
-                from datetime import datetime, timedelta
+                from datetime import datetime
                 last_job_date = datetime.fromisoformat(recent_jobs[0]['created_at'].replace('Z', '+00:00'))
                 days_ago = (datetime.now().astimezone() - last_job_date).days
                 
