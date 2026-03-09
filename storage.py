@@ -19,10 +19,7 @@ Provides block storage and file storage management capabilities
 """
 
 import logging
-from typing import Dict, List, Any, Optional
-import ibm_vpc
-from ibm_cloud_sdk_core import ApiException
-from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
+from typing import Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
 

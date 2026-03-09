@@ -13,6 +13,7 @@ ibm-vpc==0.28.0
 idna==3.10
 markdown-it-py==3.0.0
 mcp==1.9.1
+mcp-ui-server==1.0.0
 mdurl==0.1.2
 prettytable==3.16.0
 prompt-toolkit==3.0.51

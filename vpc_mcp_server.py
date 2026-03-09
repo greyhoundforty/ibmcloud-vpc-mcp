@@ -10,12 +10,19 @@ from typing import Dict, List, Any
 import asyncio
 
 from mcp.server import Server
-from mcp.types import Tool, TextContent
+from mcp.types import (
+    EmbeddedResource,
+    Resource,
+    TextContent,
+    TextResourceContents,
+    Tool,
+)
 import mcp.server.stdio
 
 from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
 from utils import VPCManager
 from storage import StorageManager
+from vpc_ui import REGIONAL_GRAPH_URI, create_regional_graph_resource
 
 
 # Configure logging
@@ -1106,8 +1113,54 @@ class VPCMCPServer:
                 "required": ["region"]
             }
         ),
+        Tool(
+            name="show_regional_vpc_graph",
+            description=(
+                "Display an interactive world-map graph of all IBM Cloud regions "
+                "showing VPC counts. Returns a clickable HTML visualisation "
+                "rendered inline by MCP-UI compatible hosts."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {}
+            }
+        ),
     ]
 
+        @self.server.list_resources()
+        async def list_resources() -> List[Resource]:
+            return [
+                Resource(
+                    uri=REGIONAL_GRAPH_URI,
+                    name="IBM Cloud VPC Regional Graph",
+                    description=(
+                        "Interactive SVG world-map showing IBM Cloud regions "
+                        "with VPC counts. Call show_regional_vpc_graph to "
+                        "populate with live data."
+                    ),
+                    mimeType="text/html",
+                )
+            ]
+
+        @self.server.read_resource()
+        async def read_resource(uri: str) -> List[TextResourceContents]:
+            if str(uri) == REGIONAL_GRAPH_URI:
+                if not self.vpc_manager:
+                    api_key = os.environ.get('IBMCLOUD_API_KEY')
+                    if not api_key:
+                        raise ValueError("IBMCLOUD_API_KEY environment variable not set")
+                    authenticator = IAMAuthenticator(apikey=api_key)
+                    self.vpc_manager = VPCManager(authenticator)
+                regions_data = await self.vpc_manager.get_regional_vpc_counts()
+                ui_resource = create_regional_graph_resource(regions_data)
+                return [
+                    TextResourceContents(
+                        uri=REGIONAL_GRAPH_URI,
+                        mimeType="text/html",
+                        text=ui_resource.resource.text,
+                    )
+                ]
+            raise ValueError(f"Unknown resource URI: {uri}")
 
         @self.server.call_tool()
         async def call_tool(name: str, arguments: Dict[str, Any]) -> List[TextContent]:
@@ -1380,9 +1433,22 @@ class VPCMCPServer:
                         arguments['region'],
                         arguments.get('vpc_id')
                     )
+                elif name == "show_regional_vpc_graph":
+                    regions_data = await self.vpc_manager.get_regional_vpc_counts()
+                    ui_resource = create_regional_graph_resource(regions_data)
+                    return [
+                        EmbeddedResource(
+                            type="resource",
+                            resource=TextResourceContents(
+                                uri=REGIONAL_GRAPH_URI,
+                                mimeType="text/html",
+                                text=ui_resource.resource.text,
+                            ),
+                        )
+                    ]
                 else:
                     raise ValueError(f"Unknown tool: {name}")
-                
+
                 return [TextContent(
                     type="text",
                     text=json.dumps(result, indent=2)
