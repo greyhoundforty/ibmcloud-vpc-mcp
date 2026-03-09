@@ -1125,6 +1125,82 @@ class VPCMCPServer:
                 "properties": {}
             }
         ),
+        # Transit Gateway Tools
+        Tool(
+            name="list_transit_gateways",
+            description="List all Transit Gateways (global service, not region-scoped)",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of gateways to return (default 50)"
+                    },
+                    "start": {
+                        "type": "string",
+                        "description": "Pagination start token (optional)"
+                    }
+                }
+            }
+        ),
+        Tool(
+            name="get_transit_gateway",
+            description="Get details for a specific Transit Gateway including routing type",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "transit_gateway_id": {
+                        "type": "string",
+                        "description": "Transit Gateway ID"
+                    }
+                },
+                "required": ["transit_gateway_id"]
+            }
+        ),
+        Tool(
+            name="list_transit_gateway_connections",
+            description="List VPC connections for a Transit Gateway",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "transit_gateway_id": {
+                        "type": "string",
+                        "description": "Transit Gateway ID"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Filter by connection name (optional)"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of connections to return (default 50)"
+                    },
+                    "start": {
+                        "type": "string",
+                        "description": "Pagination start token (optional)"
+                    }
+                },
+                "required": ["transit_gateway_id"]
+            }
+        ),
+        Tool(
+            name="get_transit_gateway_connection",
+            description="Get details for a specific Transit Gateway connection",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "transit_gateway_id": {
+                        "type": "string",
+                        "description": "Transit Gateway ID"
+                    },
+                    "connection_id": {
+                        "type": "string",
+                        "description": "Connection ID"
+                    }
+                },
+                "required": ["transit_gateway_id", "connection_id"]
+            }
+        ),
     ]
 
         @self.server.list_resources()
@@ -1446,6 +1522,28 @@ class VPCMCPServer:
                             ),
                         )
                     ]
+                # Transit Gateway handlers
+                elif name == "list_transit_gateways":
+                    result = await self.vpc_manager.list_transit_gateways(
+                        limit=arguments.get('limit', 50),
+                        start=arguments.get('start')
+                    )
+                elif name == "get_transit_gateway":
+                    result = await self.vpc_manager.get_transit_gateway(
+                        arguments['transit_gateway_id']
+                    )
+                elif name == "list_transit_gateway_connections":
+                    result = await self.vpc_manager.list_transit_gateway_connections(
+                        arguments['transit_gateway_id'],
+                        name=arguments.get('name'),
+                        limit=arguments.get('limit', 50),
+                        start=arguments.get('start')
+                    )
+                elif name == "get_transit_gateway_connection":
+                    result = await self.vpc_manager.get_transit_gateway_connection(
+                        arguments['transit_gateway_id'],
+                        arguments['connection_id']
+                    )
                 else:
                     raise ValueError(f"Unknown tool: {name}")
 
